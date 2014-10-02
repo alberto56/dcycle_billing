@@ -1,6 +1,7 @@
 name = manage deploy
 core = 7.x
 
+dependencies[] = dcycle
 dependencies[] = features
 dependencies[] = views
 dependencies[] = context
