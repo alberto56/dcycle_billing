@@ -1,0 +1,20 @@
+<?php 
+/**
+ * @file
+ * manage_deploy_base.test
+ * This file contains the testing code for this module
+ */
+
+/**
+ * The test case
+ */
+class manage_deploy_baseTestCase extends DrupalWebTestCase {
+  /*
+   * Enable your module
+   */
+  public function setUp() {
+    // set up a new site with default core modules, manage_deploy_base, and
+    // dependencies.
+    parent::setUp('manage_deploy_base');
+  }
+}

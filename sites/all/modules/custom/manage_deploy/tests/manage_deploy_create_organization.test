@@ -1,0 +1,35 @@
+<?php 
+/**
+ * @file
+ * manage_deploy_create_organization.test
+ * This file contains the testing code for this module
+ */
+
+/**
+ * The test case
+ */
+class manage_deploy_create_organizationTestCase extends manage_deploy_baseTestCase {
+  /**
+   * Info for this test case.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => t('manage_deploy_create_organization: basic test'),
+      'description' => t('describe test.'),
+      'group' => 'manage_deploy_create_organization',
+    );
+  }
+
+  /*
+   * Test case for manage_deploy_create_organization.
+   */
+  public function testModule() {
+    $user = dcycle_create_user(array('roles' => array('administrator')));
+    $this->drupalLogin($user);
+    $edit = array(
+      'title' => 'My Client',
+    );
+    $this->drupalPost('node/add/pmorganization', $edit, 'Save');
+    $this->assertText('has been created', 'Organization created successfully');
+  }
+}
