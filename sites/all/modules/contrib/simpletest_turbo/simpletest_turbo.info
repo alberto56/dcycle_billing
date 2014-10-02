@@ -1,0 +1,13 @@
+name = Simpletest Turbo
+descriptions = Allows developers to cache tables in their tests' setUp() function, meaning tests run faster if many test cases use the same setUp() and it is using Simpletest Turbo. See examples and README.txt for details.
+core = 7.x
+dependencies[] = simpletest
+
+files[] = simpletest_turbo.test
+
+; Information added by Drupal.org packaging script on 2014-08-09
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "simpletest_turbo"
+datestamp = "1407614928"
+

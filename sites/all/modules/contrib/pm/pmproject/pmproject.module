@@ -1,0 +1,955 @@
+<?php
+/**
+ * @file
+ */
+
+/**
+ * Implements hook_help().
+ */
+function pmproject_help($path, $arg) {
+  $o = '';
+
+  switch ($path) {
+    case "admin/help#pmproject":
+      $o = '<p>' . t("Provides project support for Project Management") . '</p>';
+      break;
+  }
+
+  return $o;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pmproject_permission() {
+  return array(
+    'Project Management Project: access' => array(
+      'title' => t('Access PM Project'),
+      'description' => t('Allows the user to see pages and blocks associated with the PM Project module, but does not control which projects are shown within them.'),
+    ),
+    'Project Management Project: add' => array(
+      'title' => t('Add PM Project'),
+      'description' => t('Allows the user to create a project.'),
+    ),
+    'Project Management Project: delete all' => array(
+      'title' => t('Delete Any PM Project'),
+      'description' => t('Allows the user to delete any project.'),
+    ),
+    'Project Management Project: delete own' => array(
+      'title' => t('Delete Authored PM Project'),
+      'description' => t('For projects authored by the user, allows the user to delete the project.'),
+    ),
+    'Project Management Project: delete of user organization' => array(
+      'title' => t('Delete PM Projects in own Organization'),
+      'description' => t('For projects assigned to the same PM Organization as a PM Person, allows the user associated with that Person to delete the project.'),
+    ),
+    'Project Management Project: delete if project manager' => array(
+      'title' => t('Delete PM Project if project manager'),
+      'description' => t('For projects with a PM Person assigned as project manager, allows the user associated with that Person to delete the project.'),
+    ),
+    'Project Management Project: delete if assigned to project' => array(
+      'title' => t('Delete PM Project if assigned to project'),
+      'description' => t('For projects assigned to a PM Person or Team, allows users associated with that Person or Team to delete the project.'),
+    ),
+    'Project Management Project: edit all' => array(
+      'title' => t('Edit Any PM Project'),
+      'description' => t('Allows the user to edit any project.'),
+    ),
+    'Project Management Project: edit own' => array(
+      'title' => t('Edit Authored PM Project'),
+      'description' => t('For projects authored by the user, allows the user to edit the project.'),
+    ),
+    'Project Management Project: edit of user organization' => array(
+      'title' => t('Edit PM Project in own Organization'),
+      'description' => t('For projects assigned to the same PM Organization as a PM Person, allows the user associated with that Person to edit the project.'),
+    ),
+    'Project Management Project: edit if project manager' => array(
+      'title' => t('Edit PM Project if project manager'),
+      'description' => t('For projects with a PM Person assigned as project manager, allows the user associated with that Person to edit the project.'),
+    ),
+    'Project Management Project: edit if assigned to project' => array(
+      'title' => t('Edit PM Project if assigned to project'),
+      'description' => t('For projects assigned to a PM Person or Team, allows users associated with that Person or Team to edit the project.'),
+    ),
+    'Project Management Project: view all' => array(
+      'title' => t('View Any PM Project'),
+      'description' => t('Allows the user to view any project and see any project in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Project: view own' => array(
+      'title' => t('View Authored PM Project'),
+      'description' => t('For projects authored by the user, allows the user to view the project and see the project in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Project: view of user organization' => array(
+      'title' => t('View PM Project in own Organization'),
+      'description' => t('For projects assigned to the same PM Organization as a PM Person, allows the user associated with that Person to view the project and see the project in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Project: view if project manager' => array(
+      'title' => t('View Project Management Project if project manager'),
+      'description' => t('For projects with a PM Person assigned as project manager, allows the user associated with that Person to view the project and see the project in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Project: view if assigned to project' => array(
+      'title' => t('View Project Management Project if assigned to project'),
+      'description' => t('For projects assigned to a PM Person or Team, allows users associated with that Person or Team to view the project and see the project in lists or dropdowns elsewhere on the site.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function pmproject_node_access($node, $op, $account = NULL) {
+  $type = is_string($node) ? $node : $node->type;
+  if ($type == 'pmproject') {
+    // If no account is specified, assume that the check is against the current logged in user
+    if (is_null($account)) {
+      global $user;
+      $account = $user;
+    }
+    if ($op == 'create' AND user_access('Project Management Project: add', $account)) {
+      return NODE_ACCESS_ALLOW;
+    }
+  }
+  return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function pmproject_menu() {
+  $items = array();
+
+  $items['pm/organization_projects_js/%'] = array(
+    'title' => 'Projects',
+    'page callback' => '_pmproject_organization_projects_js',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'file' => 'pmproject.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pmproject_theme() {
+  return array(
+    'pmproject_view' => array(
+      'file'      => 'pmproject.theme.inc',
+      'variables' => array('node', 'view_mode'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function pmproject_node_info() {
+  return array(
+    'pmproject' => array(
+      'name' => t('Project'),
+      'base' => 'pmproject',
+      'description' => t("A project for Project Management."),
+      'title_label' => t("Title"),
+    )
+  );
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function pmproject_field_extra_fields() {
+  $extra['node']['pmproject'] = array(
+    'form' => array(
+      'group1' => array(
+        'label' => 'Organization',
+        'weight' => -20,
+      ),
+      'group2' => array(
+        'label' => 'Category/Status/Priority Group',
+        'weight' => -19,
+      ),
+      'group3' => array(
+        'label' => 'Duration Group',
+        'weight' => -17,
+      ),
+      'group4' => array(
+        'label' => 'Price Group',
+        'weight' => -16,
+      ),
+      'group5' => array(
+        'label' => 'Manager / Assigned to Group',
+        'weight' => -15,
+      ),
+    ),
+  );
+  return $extra;
+}
+
+/**
+ * Implements hook_field_extra_fields_alter().
+ */
+function pmproject_field_extra_fields_alter(&$info) {
+  $info['node']['pmproject']['form']['title']['weight'] = -21;
+}
+
+/**
+ * Implements hook_pmorganization_change().
+ */
+function pmproject_pmorganization_change($organization_nid, $organization_title) {
+  db_update('pmproject')
+    ->fields(array('organization_title' => $organization_title))
+    ->condition('organization_nid', $organization_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmperson_change().
+ */
+function pmproject_pmperson_change($person_nid, $person_title) {
+  // Manager field
+  db_update('pmproject')
+    ->fields(array('manager_title' => $person_title))
+    ->condition('manager_nid', $person_nid)
+    ->execute();
+
+  // Assigned field
+  db_update('pmproject')
+    ->fields(array('assigned_title' => $person_title))
+    ->condition('assigned_nid', $person_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_form().
+ */
+function pmproject_form(&$node) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Projects'), 'pm/projects');
+  drupal_set_breadcrumb($breadcrumb);
+
+  $org_query = db_select('node', 'n');
+  $org_query->join('pmorganization', 'sor', 'n.vid = sor.vid');
+  $org_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmorganization')
+    ->addTag('node_access')
+    ->orderBy('n.title', 'ASC');
+
+  $type = node_type_get_type($node);
+  $info = field_info_extra_fields('node', 'pmproject', 'form');
+
+  $form['#attributes']['class'] = 'pmcomponent_node_form';
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => check_plain($type->title_label),
+    '#required' => TRUE,
+    '#default_value' => $node->title,
+    '#weight' => $info['title']['weight'],
+  );
+
+  $form['group1'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group1']['weight'],
+  );
+
+  $org_result = $org_query->execute();
+  $organizations = array();
+  foreach ($org_result as $organization) {
+    $organizations[$organization->nid] = $organization->title;
+    if (!isset($node->organization_nid)) $node->organization_nid = $organization->nid;
+  }
+  if (!isset($node->organization_nid)) {
+    drupal_set_message(t('Please add an orgnization to the system before trying to add a project.'), 'error');
+  }
+  $form['group1']['organization_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Organization'),
+    '#options' => $organizations,
+    '#default_value' => isset($node->organization_nid) ? $node->organization_nid : NULL,
+  );
+
+  $form['group1']['organization_nid_old'] = array(
+    '#type' => 'hidden',
+    '#default_value' => isset($node->organization_nid) ? $node->organization_nid : NULL,
+  );
+
+  $form['group2'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group2']['weight'],
+  );
+
+  $category_list = pm_attributes_bydomain('Project category');
+  $form['group2']['projectcategory'] = array(
+    '#type' => 'select',
+    '#title' => t('Category'),
+    '#default_value' => isset($node->projectcategory) ? $node->projectcategory : $category_list['default'],
+    '#options' => $category_list['values'],
+  );
+
+  $status_list = pm_attributes_bydomain('Project status');
+  $form['group2']['projectstatus'] = array(
+    '#type' => 'select',
+    '#title' => t('Status'),
+    '#default_value' => isset($node->projectstatus) ? $node->projectstatus : $status_list['default'],
+    '#options' => $status_list['values'],
+  );
+
+  $priority_list = pm_attributes_bydomain('Project priority');
+  $form['group2']['projectpriority'] = array(
+    '#type' => 'select',
+    '#title' => t('Priority'),
+    '#default_value' => isset($node->projectpriority) ? $node->projectpriority : $priority_list['default'],
+    '#options' => $priority_list['values'],
+  );
+
+  $form['group3'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group3']['weight'],
+  );
+
+  $durationunit_list = pm_attributes_bydomain('Duration unit');
+  $form['group3']['durationunit'] = array(
+    '#type' => 'select',
+    '#title' => t('Duration unit'),
+    '#default_value' => isset($node->durationunit) ? $node->durationunit : $durationunit_list['default'],
+    '#options' => $durationunit_list['values'],
+  );
+
+  $form['group3']['duration'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Duration'),
+    '#size' => 20,
+    '#default_value' => isset($node->duration) ? $node->duration : NULL,
+  );
+
+  $form['group4'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group4']['weight'],
+  );
+
+  $pricemode_list = pm_attributes_bydomain('Price mode');
+  $form['group4']['pricemode'] = array(
+    '#type' => 'select',
+    '#title' => t('Price mode'),
+    '#default_value' => isset($node->pricemode) ? $node->pricemode : $pricemode_list['default'],
+    '#options' => $pricemode_list['values'],
+  );
+
+  $form['group4']['price'] = array(
+    '#title' => t('Price'),
+    '#type' => 'textfield',
+    '#size' => 15,
+    '#default_value' => isset($node->price) ? $node->price : NULL,
+  );
+
+  $currency_list = pm_attributes_bydomain('Currency');
+  $form['group4']['currency'] = array(
+    '#type' => 'select',
+    '#title' => t('Price currency'),
+    '#default_value' => isset($node->currency) ? $node->currency : $currency_list['default'],
+    '#options' => $currency_list['values'],
+  );
+
+  $form['group5'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group5']['weight'],
+  );
+
+  $people = $options = pm_get_assignment_options(isset($node->organization_nid) ? $node->organization_nid : 0, isset($node->nid) ? $node->nid : 0);
+
+  if (isset($people['Teams:'])) {
+    unset($people['Teams:']);
+  }
+
+  $form['group5']['manager_nid'] = array(
+    '#type' => module_exists('pmperson') ? 'select' : 'hidden',
+    '#title' => t('Project manager'),
+    '#options' => $people,
+    '#default_value' => isset($node->manager_nid) ? $node->manager_nid : 0,
+  );
+
+  $form['group5']['assigned_nid'] = array(
+    '#type' => module_exists('pmperson') ? 'select' : 'hidden',
+    '#title' => t('Assigned to'),
+    '#options' => $options,
+    '#default_value' => isset($node->assigned_nid) ? $node->assigned_nid : 0,
+  );
+
+  // Check to see if the body field is still there, if so, display it.
+  $body = field_get_items('pmproject', $node, 'body');
+  if ($body) {
+    $form['body_field'] = $body;
+  }
+
+  $form['title_old'] = array(
+    '#type' => 'hidden',
+    '#default_value' => isset($node->title_old) ? $node->title_old : NULL,
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_insert().
+ */
+function pmproject_insert($node) {
+  _pmproject_beforesave($node);
+
+  $org_result = db_select('node', 'n')
+    ->fields('n', array('title'))
+    ->condition('n.type', 'pmorganization')
+    ->condition('n.nid', $node->organization_nid)
+    ->execute();
+  $organization = $org_result->fetchObject();
+
+  $per_result = db_select('node', 'n')
+    ->fields('n', array('title'))
+    ->condition('n.type', 'pmperson')
+    ->condition('n.nid', $node->manager_nid)
+    ->execute();
+  $manager = $per_result->fetchObject();
+  if (!$manager) {
+    $manager = new stdClass();
+    $manager->title = '';
+  }
+
+  $assigned = node_load($node->assigned_nid);
+  if (!$assigned) {
+    $assigned = new stdClass();
+    $assigned->title = '';
+  }
+
+  db_insert('pmproject')
+    ->fields(array(
+      'vid' => $node->vid,
+      'nid' => $node->nid,
+      'organization_nid' => $node->organization_nid,
+      'organization_title' => $organization->title,
+      'projectcategory' => $node->projectcategory,
+      'projectstatus' => $node->projectstatus,
+      'projectpriority' => $node->projectpriority,
+      'pricemode' => $node->pricemode,
+      'price' => $node->price,
+      'currency' => $node->currency,
+      'durationunit' => $node->durationunit,
+      'duration' => $node->duration,
+      'manager_nid' => $node->manager_nid,
+      'manager_title' => $manager->title,
+      'assigned_nid' => $node->assigned_nid,
+      'assigned_title' => $assigned->title,
+    ))
+    ->execute();
+}
+
+/**
+ * Implements hook_update().
+ */
+function pmproject_update($node) {
+  _pmproject_beforesave($node);
+
+  // This code needs to run whether or not revisions are being used
+  $org_result = db_select('node', 'n')
+    ->fields('n', array('title'))
+    ->condition('n.type', 'pmorganization')
+    ->condition('n.nid', $node->organization_nid)
+    ->execute();
+  $organization = $org_result->fetchObject();
+
+  // If the project has been moved to a different organization, all nodes that reference the project should be updated.
+  if ($node->organization_nid != $node->organization_nid_old) {
+    module_invoke_all('pmproject_change_hierarchy', $node->nid, $node->organization_nid, $organization->title);
+  }
+
+  // If this is a new node or we're adding a new revision,
+  if ($node->revision) {
+    pmproject_insert($node);
+  }
+  else {
+    $per_result = db_select('node', 'n')
+      ->fields('n', array('title'))
+      ->condition('n.type', 'pmperson')
+      ->condition('n.nid', $node->manager_nid)
+      ->execute();
+    $manager = $per_result->fetchObject();
+    if (!$manager) {
+      $manger = new stdClass();
+      $manager->title = '';
+    }
+
+    $assigned = node_load($node->assigned_nid);
+    if (!$assigned) {
+      $assigned = new stdClass();
+      $assigned->title = '';
+    }
+
+    db_update('pmproject')
+      ->fields(array(
+        'nid' => $node->nid,
+        'organization_nid' => $node->organization_nid,
+        'organization_title' => $organization->title,
+        'projectcategory' => $node->projectcategory,
+        'projectstatus' => $node->projectstatus,
+        'projectpriority' => $node->projectpriority,
+        'pricemode' => $node->pricemode,
+        'price' => $node->price,
+        'currency' => $node->currency,
+        'durationunit' => $node->durationunit,
+        'duration' => $node->duration,
+        'manager_nid' => $node->manager_nid,
+        'manager_title' => $manager->title,
+        'assigned_nid' => $node->assigned_nid,
+        'assigned_title' => $assigned->title,
+      ))
+      ->condition('vid', $node->vid)
+      ->execute();
+
+    if ($node->title != $node->title_old) {
+      module_invoke_all('pmproject_change', $node->nid, $node->title);
+    }
+  }
+}
+
+/**
+ * Prepare node data before saving it to the database.
+ */
+function _pmproject_beforesave(&$node) {
+  // Allow use of comma when inputting numerical values - str_replace with period decimal
+  $node->duration = str_replace(',', '.', $node->duration);
+  $node->price = str_replace(',', '.', $node->price);
+  if (!is_numeric($node->duration)) {
+    $node->duration = 0;
+  }
+  if (!is_numeric($node->price)) {
+    $node->price = 0;
+  }
+}
+
+/**
+ * Implements hook_node_revision_delete().
+ */
+function pmproject_node_revision_delete($node) {
+  // Notice that we're matching a single revision based on the node's vid.
+  db_delete('pmproject')
+    ->condition('vid', $node->vid)
+    ->execute();
+}
+
+/**
+ * Implements hook_delete().
+ */
+function pmproject_delete($node) {
+  // Notice that we're matching all revision, by using the node's nid.
+  db_delete('pmproject')
+    ->condition('nid', $node->nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_load().
+ */
+function pmproject_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $result = db_select('pmproject', 'spr')
+      ->fields('spr')
+      ->condition('spr.vid', $node->vid)
+      ->execute();
+    $record = $result->fetchAssoc();
+
+    foreach ($record as $key => $value) {
+      $node->$key = $value;
+    }
+
+    $node->title_old = $node->title;
+  }
+}
+
+/**
+ * Implements hook_view().
+ */
+function pmproject_view($node, $view_mode) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Projects'), 'pm/projects');
+  drupal_set_breadcrumb($breadcrumb);
+
+  return theme('pmproject_view', array('node' => $node, 'view_mode' => $view_mode));
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pmproject_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'pmproject'),
+  );
+}
+
+/**
+ * Implements hook_token_list().
+ */
+function pmproject_token_list($type='all') {
+  $tokens = array();
+  if (($type == 'node') || ($type == 'all')) {
+    $tokens['node']['pmproject-projectstatus'] = t('Project Management Project: Project Status.');
+    $tokens['node']['pmproject-projectcategory'] = t('Project Management Project: Project Category.');
+    $tokens['node']['pmproject-projectpriority'] = t('Project Management Project: Project Priority.');
+    $tokens['node']['pmproject-durationunit'] = t('Project Management Project: Project Duration Unit.');
+    $tokens['node']['pmproject-duration'] = t('Project Management Project: Project Duration.');
+    $tokens['node']['pmproject-price'] = t('Project Management Project: Project Price.');
+    $tokens['node']['pmproject-pricemode'] = t('Project Management Project: Project Price Mode.');
+    if (module_exists('pmorganization')) {
+      $tokens['node']['pmproject-organization-nid'] = t('Project Management Project: Organization Node ID.');
+      $tokens['node']['pmproject-organization-title'] = t('Project Management Project: Organization Title.');
+    }
+    if (module_exists('pmperson')) {
+      // Project Manager
+      $tokens['node']['pmproject-manager-title'] = t('Project Management Project: Project Manager Title.');
+      $tokens['node']['pmproject-manager-uid'] = t('Project Management Project: Project Manager User ID.');
+      $tokens['node']['pmproject-manager-name'] = t('Project Management Project: Project Manager Name.');
+      $tokens['node']['pmproject-manager-fullname'] = t('Project Management Project: Project Manager Full Name.');
+      $tokens['node']['pmproject-manager-email'] = t('Project Management Project: Project Manager Email Address.');
+      // Assignee(s)
+      $tokens['node']['pmproject-assigned-to-email'] = t('Project Management Project: Project Assignee(s) Email Address(s).');
+      $tokens['node']['pmproject-assigned-title'] = t('Project Management Project: Project Assignee(s) Title(s).');
+    }
+  }
+  return $tokens;
+}
+
+/**
+ * Implements hook_token_values().
+ */
+function pmproject_token_values($type, $object = NULL) {
+  $values = array();
+  $node = $object;
+  if ((($type == 'node') || ($type == 'all')) && ($node->type === 'pmproject')) {
+    $values['pmproject-projectstatus'] = $node->projectstatus;
+    $values['pmproject-projectpriority'] = $node->projectpriority;
+    $values['pmproject-projectcategory'] = $node->projectcategory;
+    $values['pmproject-durationunit'] = $node->durationunit;
+    $values['pmproject-duration'] = $node->duration;
+    $values['pmproject-price'] = $node->price;
+    $values['pmproject-pricemode'] = $node->pricemode;
+    if (module_exists('pmorganization')) {
+      $values['pmproject-organization-nid'] = $node->organization_nid;
+      $values['pmproject-organization-title'] = $node->organization_title;
+    }
+    if (module_exists('pmperson')) {
+      // Project Manager
+      if ($node->manager_nid) {
+        $manager = node_load($node->manager_nid);
+        $values['pmproject-manager-uid'] = $manager->user_uid;
+        $values['pmproject-manager-name'] = $manager->title;
+        $values['pmproject-manager-fullname'] = $manager->fullname;
+        $values['pmproject-manager-email'] = pmperson_primary_email($manager);
+        $values['pmproject-manager-title'] = $node->manager_title;
+      }
+      else {
+        $values['pmproject-manager-email'] = NULL;
+      }
+      // Project Assignee(s) e-mail
+      if ($node->assigned_nid) {
+        $values['pmproject-assigned-title'] = $node->assigned_title;
+        $assignees_node = node_load($node->assigned_nid);
+        // Assigned to one person
+        if ($assignees_node->type === 'pmperson') {
+          $values['pmproject-assigned-to-email'] = pmperson_primary_email($assignees_node);
+        }
+        // Assigned to a team
+        else {
+          $assignees_array = $assignees_node->members_array;
+          $assignees = array();
+          foreach ($assignees_array as $nid => $name) {
+            $assignee = node_load($nid);
+            $assignees[] = pmperson_primary_email($assignee);
+          }
+          $assigned = implode(", ", $assignees);
+          // Return comma separated list of emails
+          $values['pmproject-assigned-to-email'] = $assigned;
+        }
+      }
+      else {
+        $values['pmproject-assigned-to-email'] = NULL;
+      }
+    }
+  }
+  return $values;
+}
+
+/**
+ * Implements  hook_node_access_records().
+ */
+function pmproject_node_access_records($node) {
+  if (empty($node->status)) {
+    // Lets Drupal take care of permission to unpublished nodes.
+    return array();
+  }
+  $type = is_string($node) ? $node : $node->type;
+  $grants = array();
+  if ($type == 'pmproject') {
+    // Project Management Project: view all
+    $grants[] = array(
+      'realm' => 'pmproject_view_all',
+      'gid' => 0,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Project: view own
+    $grants[] = array(
+      'realm' => 'pmproject_view_own',
+      'gid' => $node->uid,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Project: view of user organization
+    if (isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_view_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 1,
+        'grant_update' => 0,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: view if project manager
+    if (isset($node->manager_nid) && !empty($node->manager_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_view_if_manager',
+        'gid' => $node->manager_nid,
+        'grant_view' => 1,
+        'grant_update' => 0,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: view if assigned to project
+    if (isset($node->assigned_nid) && !empty($node->assigned_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_view_if_assigned',
+        'gid' => $node->assigned_nid,
+        'grant_view' => 1,
+        'grant_update' => 0,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: edit all
+    $grants[] = array(
+      'realm' => 'pmproject_update_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Project: edit own
+    $grants[] = array(
+      'realm' => 'pmproject_update_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Project: edit of user organization
+    if (isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_update_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 1,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: edit if project manager
+    if (isset($node->manager_nid) && !empty($node->manager_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_update_if_manager',
+        'gid' => $node->manager_nid,
+        'grant_view' => 0,
+        'grant_update' => 1,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: edit if assigned to project
+    if (isset($node->assigned_nid) && !empty($node->assigned_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_update_if_assigned',
+        'gid' => $node->assigned_nid,
+        'grant_view' => 0,
+        'grant_update' => 1,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: delete all
+    $grants[] = array(
+      'realm' => 'pmproject_delete_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management Project: delete own
+    $grants[] = array(
+      'realm' => 'pmproject_delete_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management Project: delete of user organization
+    if (isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_delete_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 0,
+        'grant_delete' => 1,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: delete if project manager
+    if (isset($node->manager_nid) && !empty($node->manager_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_delete_if_manager',
+        'gid' => $node->manager_nid,
+        'grant_view' => 0,
+        'grant_update' => 0,
+        'grant_delete' => 1,
+        'priority' => 0,
+      );
+    }
+    // Project Management Project: delete if assigned to project
+    if (isset($node->assigned_nid) && !empty($node->assigned_nid)) {
+      $grants[] = array(
+        'realm' => 'pmproject_delete_if_assigned',
+        'gid' => $node->assigned_nid,
+        'grant_view' => 0,
+        'grant_update' => 0,
+        'grant_delete' => 1,
+        'priority' => 0,
+      );
+    }
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_node_grants().
+ */
+function pmproject_node_grants($account, $op) {
+  if (module_exists('pmperson')) {
+    _pmperson_user_load($account);
+    if (!empty($account->pmteam) AND is_array($account->pmteam)) {
+      $assigned_nids = $account->pmteam;
+    }
+    if (isset($account->pmperson_nid) AND !empty($account->pmperson_nid)) {
+      $assigned_nids[] = $account->pmperson_nid;
+    }
+  }
+  $grants = array();
+  switch ($op) {
+    case 'view':
+      if (user_access('Project Management Project: view all', $account)) {
+        $grants['pmproject_view_all'] = array(0);
+      }
+      if (user_access('Project Management Project: view own', $account)) {
+        $grants['pmproject_view_own'] = array($account->uid);
+      }
+      if (user_access('Project Management Project: view of user organization', $account)) {
+        $grants['pmproject_view_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      if (isset($account->pmperson_nid)) {
+        if (user_access('Project Management Project: view if project manager', $account)) {
+          $grants['pmproject_view_if_manager'] = array($account->pmperson_nid);
+        }
+        if (user_access('Project Management Project: view if assigned to project', $account)) {
+          $grants['pmproject_view_if_assigned'] = $assigned_nids;
+        }
+      }
+      break;
+
+    case 'update':
+      if (user_access('Project Management Project: edit all', $account)) {
+        $grants['pmproject_update_all'] = array(0);
+      }
+      if (user_access('Project Management Project: edit own', $account)) {
+        $grants['pmproject_update_own'] = array($account->uid);
+      }
+      if (user_access('Project Management Project: edit of user organization', $account)) {
+        $grants['pmproject_update_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      if (isset($account->pmperson_nid)) {
+        if (user_access('Project Management Project: edit if project manager', $account)) {
+          $grants['pmproject_update_if_manager'] = array($account->pmperson_nid);
+        }
+        if (user_access('Project Management Project: edit if assigned to project', $account)) {
+          $grants['pmproject_update_if_assigned'] = $assigned_nids;
+        }
+      }
+      break;
+
+    case 'delete':
+      if (user_access('Project Management Project: delete all', $account)) {
+        $grants['pmproject_delete_all'] = array(0);
+      }
+      if (user_access('Project Management Project: delete own', $account)) {
+        $grants['pmproject_delete_own'] = array($account->uid);
+      }
+      if (user_access('Project Management Project: delete of user organization', $account)) {
+        $grants['pmproject_delete_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      if (isset($account->pmperson_nid)) {
+        if (user_access('Project Management Project: delete if project manager', $account)) {
+          $grants['pmproject_delete_if_manager'] = array($account->pmperson_nid);
+        }
+        if (user_access('Project Management Project: delete if assigned to project', $account)) {
+          $grants['pmproject_delete_if_assigned'] = $assigned_nids;
+        }
+      }
+      break;
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_pm_dashboard_links().
+ */
+function pmproject_pm_dashboard_links($type) {
+  $links = array();
+  if ($type == 'page' || $type == 'block') {
+    $links[] = array(
+      'theme' => 'pm_dashboard_link',
+      'title' => t('Projects'),
+      'icon' => 'pmprojects',
+      'path' => 'pm/projects',
+      'params' => array(),
+      'node_type' => 'pmproject',
+      'add_type' => 'pmproject',
+      'map' => array(),
+      'weight' => 4,
+    );
+  }
+  return $links;
+}

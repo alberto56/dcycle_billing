@@ -1,0 +1,72 @@
+<?php
+/**
+ * @file
+ * Test definitions for the PM Invoice module.
+ */
+class PMInvoiceTestCase extends DrupalWebTestCase {
+
+  /**
+   * Provides metadata about this group of test cases.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => t('PM Invoice Functionality'),
+      'description' => t('Test the functionality of the PM Invoice module'),
+      'group' => 'Project Management',
+    );
+  }
+
+  /**
+   * Standard configuration for all test cases.
+   */
+  public function setUp() {
+    parent::setUp('pm', 'pmorganization', 'pmproject', 'pminvoice');
+  }
+
+  /**
+   * Test case covering access of invoice list.
+   */
+  public function testpminvoiceAccess() {
+    $this->drupalGet('pm/invoices');
+    $this->assertResponse(403, t('Make sure access is denied to Project Management Invoices list for anonymous user'));
+
+    $basic_user = $this->drupalCreateUser();
+    $this->drupalLogin($basic_user);
+    $this->drupalGet('pm/invoices');
+    $this->assertResponse(403, t('Make sure access is denied to Project Management Invoices list for basic user'));
+
+    $privileged_user = $this->drupalCreateUser(array('Project Management invoice: access'));
+    $this->drupalLogin($privileged_user);
+    $this->drupalGet('pm/invoices');
+    $this->assertText(t('Invoices'), t('Make sure the correct page has been displayed by checking that the title is "Invoices".'));
+  }
+
+  /**
+   * Test case covering creation of pminvoices.
+   */
+  public function testpminvoiceCreate() {
+    // Create and login user
+    $user = $this->drupalCreateUser(array('Project Management Organization: add', 'Project Management Organization: view all', 'Project Management invoice: add', 'Project Management invoice: view all'));
+    $this->drupalLogin($user);
+
+    // Create organization and invoice
+    $org = array(
+      'title' => $this->randomName(32),
+      'body[und][0][value]' => $this->randomName(64),
+    );
+    $inv = array(
+      'title' => $this->randomName(32),
+      'organization_nid' => '1',
+      'items_0_description' => $this->randomName(32),
+      'items_0_amount' => '.28',
+      'items_0_tax1app' => '1',
+      'items_0_tax1percent' => '5',
+      'items_0_tax2app' => '2',
+      'items_0_tax2percent' => '7.5',
+    );
+    $this->drupalPost('node/add/pmorganization', $org, t('Save'));
+    $this->drupalPost('node/add/pminvoice', $inv, t('Save'));
+
+    $this->assertText(t('Invoice @title has been created.', array('@title' => $inv['title'])));;
+  }
+}

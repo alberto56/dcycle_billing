@@ -1,0 +1,417 @@
+<?php
+/**
+ * @file
+ * Install, disable, uninstall and update functions for pmtask module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function pmtask_install() {
+  variable_set('node_options_pmtask', array('status'));
+  variable_set('node_permissions_pmtask', 0);
+
+  // Uncache node types
+  node_types_rebuild();
+
+  // Fetch list of current node types and add body field to pmtask
+  $types = node_type_get_types();
+  node_add_body_field($types['pmtask'], 'Description');
+
+  // Add instance of date field.
+  field_create_instance(array(
+    'field_name' => 'pm_date',
+    'label' => 'Date',
+    'widget' => array(
+      'weight' => '-18',
+      'type' => 'date_text',
+      'module' => 'date',
+      'active' => 1,
+      'settings' => array(
+        'input_format' => 'm/d/Y - H:i:s',
+        'input_format_custom' => '',
+        'year_range' => '-3:+3',
+        'increment' => 15,
+        'label_position' => 'above',
+        'text_parts' => array(),
+      ),
+    ),
+    'settings' => array(
+      'default_value' => 'now',
+      'default_value_code' => '',
+      'default_value2' => 'same',
+      'default_value_code2' => '',
+      'user_register_form' => FALSE,
+    ),
+    'display' => array(
+      'default' => array(
+        'label' => 'above',
+        'type' => 'date_default',
+        'settings' => array(
+          'format_type' => 'long',
+          'multiple_number' => '',
+          'multiple_from' => '',
+          'multiple_to' => '',
+          'fromto' => 'both',
+        ),
+        'module' => 'date',
+        'weight' => 1,
+      ),
+      'teaser' => array(
+        'type' => 'hidden',
+        'label' => 'above',
+        'settings' => array(),
+        'weight' => 0,
+      ),
+    ),
+    'required' => 0,
+    'entity_type' => 'node',
+    'bundle' => 'pmtask',
+  ));
+
+  // Set up instance of billing status field.
+  field_create_instance(array(
+    'field_name' => 'pm_billing_status',
+    'label' => 'Billing status',
+    'entity_type' => 'node',
+    'bundle' => 'pmtask',
+    'widget' => array(
+      'weight' => -14,
+      'type' => 'options_select',
+      'module' => 'options',
+      'active' => 1,
+      'settings' => array(),
+    ),
+    'required' => 1,
+    'description' => '',
+    'default_value' => array(
+      array(
+        'value' => variable_get('pmtask_billable_default', 0) ? 'Billable' : 'Not billable',
+      ),
+    ),
+  ));
+
+  $attributes = array();
+
+  $attributes['Task status'] = array(
+    'inserted' => 'inserted',
+    'in progress' => 'in progress',
+    'on hold' => 'on hold',
+    'completed' => 'completed'
+  );
+
+  $attributes['Task status search'] = array(
+    '-' => 'all',
+    'inserted,in progress,on hold' => 'open',
+    'inserted' => '-- inserted',
+    'in progress' => '-- in progress',
+    'on hold' => '-- on hold',
+    'completed' => 'completed'
+  );
+
+  $attributes['Task category'] = array(
+    'bug' => 'bug',
+    'feature request' => 'feature request',
+    'support' => 'support',
+    'task' => 'task'
+  );
+
+  $attributes['Task priority'] = array(
+    '1-low' => 'low',
+    '2-normal' => 'normal',
+    '3-high' => 'high',
+    '4-urgent' => 'urgent'
+  );
+
+  $attributes['Task priority search'] = array(
+    '-' => 'all',
+    '1-low' => 'low',
+    '2-normal' => 'normal',
+    '3-high' => 'high',
+    '4-urgent' => 'urgent'
+  );
+
+  $attributes['Task category search'] = array(
+    '-' => 'all',
+    'bug' => 'bug',
+    'feature request' => 'feature request',
+    'support' => 'support',
+    'task' => 'task'
+  );
+
+  $prevdomain = '';
+  $weight = 0;
+  foreach ($attributes as $domain => $attribute) {
+    if ($domain != $prevdomain) $weight=0;
+    foreach ($attribute as $key => $value) {
+      db_insert('pmattribute')
+        ->fields(array(
+          'domain' => $domain,
+          'akey' => $key,
+          'avalue' => $value,
+          'weight' => $weight,
+        ))
+        ->execute();
+
+      $weight++;
+    }
+    $prevdomain = $domain;
+  }
+
+  db_update('pmattribute')
+    ->fields(array('isdefault' => '1'))
+    ->condition('domain', 'task category')
+    ->condition('akey', 'task')
+    ->execute();
+}
+
+/**
+ * Implements hook_disable().
+ */
+function pmtask_disable() {
+  node_access_needs_rebuild(TRUE);
+  drupal_set_message(t('Nodes of type "Task" have not been deleted on disabling Project Management Task. Please note that they will now have reduced functionality, and will not be protected by Project Management Task access controls.'), 'warning');
+}
+
+/**
+ * Implements hook_enable().
+ */
+function pmtask_enable() {
+  node_access_needs_rebuild(TRUE);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function pmtask_uninstall() {
+  drupal_uninstall_schema('pmtask');
+
+  db_delete('pmattribute')
+    ->condition('domain', array('Task status', 'Task status search', 'Task category', 'Task category search', 'Task priority', 'Task priority search'), 'IN')
+    ->execute();
+}
+
+/**
+ * Implements hook_schema().
+ */
+function pmtask_schema() {
+  $schema['pmtask'] = array(
+    'fields'        => array(
+      'vid'                 => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid'                 => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'stepno'              => array('type' => 'varchar', 'length' => 50),
+      'organization_nid'    => array('type' => 'int'),
+      'organization_title'  => array('type' => 'varchar', 'length' => 150),
+      'project_nid'         => array('type' => 'int'),
+      'project_title'       => array('type' => 'varchar', 'length' => 150),
+      'parent_nid'          => array('type' => 'int'),
+      'weight'              => array('type' => 'int'),
+      'taskstatus'          => array('type' => 'varchar', 'length' => 100),
+      'taskcategory'        => array('type' => 'varchar', 'length' => 100),
+      'taskpriority'        => array('type' => 'varchar', 'length' => 100),
+      'pricemode'           => array('type' => 'varchar', 'length' => 100),
+      'price'               => array('type' => 'float'),
+      'currency'            => array('type' => 'varchar', 'length' => 100),
+      'durationunit'        => array('type' => 'varchar', 'length' => 100),
+      'duration'            => array('type' => 'float', 'default' => 0),
+      'assigned_nid'        => array('type' => 'int'),
+      'assigned_title'      => array('type' => 'varchar', 'length' => 100),
+    ),
+    'primary key' => array('vid'),
+    'indexes'     => array(
+      'nid'               => array('nid'),
+      'organization_nid'  => array('organization_nid'),
+      'project_nid'       => array('project_nid'),
+      'assigned_nid'      => array('assigned_nid'),
+      'parent_nid'        => array('parent_nid'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function pmtask_update_last_removed() {
+  return 6202;
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function pmtask_update_dependencies() {
+  // Ensure that date field is created before instance.
+  $dependencies['pmtask'][7103] = array(
+    'pm' => 7102,
+  );
+
+  // Ensure that billing status field is created before instance.
+  $dependencies['pmtask'][7104] = array(
+    'pm' => 7101,
+  );
+
+  return $dependencies;
+}
+
+/**
+ * Adds Drupal 7 style body field to Project Management Task nodes
+ */
+function pmtask_update_7100() {
+  // Uncache node types
+  node_types_rebuild();
+
+  // Fetch list of current node types
+  $types = node_type_get_types();
+
+  // Add body field to Project Management Task
+  node_add_body_field($types['pmtask'], 'Description');
+
+  return 'Added D7 style body field to Project Management Task nodes';
+}
+
+/**
+ * Allow Project Management to override the default content type permissions
+ */
+function pmtask_update_7101() {
+  variable_set('node_permissions_pmtask', 0);
+  return 'PM Task permissions overridden';
+}
+
+/**
+ * Display message to admin regarding need to rebuild permission.
+ */
+function pmtask_update_7102() {
+  node_access_needs_rebuild(TRUE);
+}
+
+/**
+ * Add date field to PM Task.
+ */
+function pmtask_update_7103() {
+  // Create field instance.
+  field_create_instance(array(
+    'field_name' => 'pm_date',
+    'label' => 'Date',
+    'widget' => array(
+      'weight' => '-18',
+      'type' => 'date_text',
+      'module' => 'date',
+      'active' => 1,
+      'settings' => array(
+        'input_format' => 'm/d/Y - H:i:s',
+        'input_format_custom' => '',
+        'year_range' => '-3:+3',
+        'increment' => 15,
+        'label_position' => 'above',
+        'text_parts' => array(),
+      ),
+    ),
+    'settings' => array(
+      'default_value' => 'now',
+      'default_value_code' => '',
+      'default_value2' => 'same',
+      'default_value_code2' => '',
+      'user_register_form' => FALSE,
+    ),
+    'display' => array(
+      'default' => array(
+        'label' => 'above',
+        'type' => 'date_default',
+        'settings' => array(
+          'format_type' => 'long',
+          'multiple_number' => '',
+          'multiple_from' => '',
+          'multiple_to' => '',
+          'fromto' => 'both',
+        ),
+        'module' => 'date',
+        'weight' => 1,
+      ),
+      'teaser' => array(
+        'type' => 'hidden',
+        'label' => 'above',
+        'settings' => array(),
+        'weight' => 0,
+      ),
+    ),
+    'required' => 0,
+    'entity_type' => 'node',
+    'bundle' => 'pmtask',
+  ));
+
+  // Migrate data
+  $query = db_select('pmtask', 'pmta');
+  $query->join('node', 'n', 'n.vid = pmta.vid');
+  $result = $query
+    ->fields('pmta', array('nid', 'vid', 'datebegin', 'dateend'))
+    ->execute();
+
+  foreach ($result as $record) {
+    $node = node_load($record->nid);
+
+    $node->pm_date[LANGUAGE_NONE][0]['value'] = date('Y-m-d H:i:s', $record->datebegin);
+    $node->pm_date[LANGUAGE_NONE][0]['value2'] = date('Y-m-d H:i:s', $record->dateend);
+    field_attach_presave('node', $node);
+    field_attach_update('node', $node);
+  }
+
+  // Delete columns from existing database table.
+  db_drop_field('pmtask', 'datebegin');
+  db_drop_field('pmtask', 'dateend');
+}
+
+/**
+ * Adds billing status instance to PM Task content type.
+ */
+function pmtask_update_7104() {
+  // Uncache node types
+  node_types_rebuild();
+
+  // Set up instance of billing status field.
+  field_create_instance(array(
+    'field_name' => 'pm_billing_status',
+    'label' => 'Billing status',
+    'entity_type' => 'node',
+    'bundle' => 'pmtask',
+    'widget' => array(
+      'weight' => -14,
+      'type' => 'options_select',
+      'module' => 'options',
+      'active' => 1,
+      'settings' => array(),
+    ),
+    'required' => 1,
+    'description' => '',
+    'default_value' => array(
+      array(
+        'value' => variable_get('pmtask_billable_default', 0) ? 'Billable' : 'Not billable',
+      ),
+    ),
+  ));
+
+  // Delete the default field value. This is now set via the core field UI.
+  variable_del('pmtask_billable_default');
+
+  // Get existing field values.
+  $query = db_select('pmtask', 'pmta');
+  $query->join('node', 'n', 'n.vid = pmta.vid');
+  $result = $query
+    ->fields('pmta', array('nid', 'vid', 'billable', 'billed'))
+    ->execute();
+
+  // Save existing field value into Field API field.
+  foreach ($result as $record) {
+    $node = node_load($record->nid);
+
+    $new_value = $record->billed ? 'Billed' : ($record->billable ? 'Billable' : 'Not billable');
+
+    $node->pm_billing_status[LANGUAGE_NONE][0]['value'] = $new_value;
+    field_attach_presave('node', $node);
+    field_attach_update('node', $node);
+  }
+
+  // Remove existing field from custom database table.
+  db_drop_field('pmtask', 'billable');
+  db_drop_field('pmtask', 'billed');
+}

@@ -1,0 +1,127 @@
+<?php 
+/**
+ * @file
+ */
+
+class simpletest_turboOptimized extends DrupalWebTestCase {
+  public static function getInfo() {
+    // Note: getInfo() strings are not translated with t().
+    return array(
+      'name' => 'Optimized',
+      'description' => 'Optimized',
+      'group' => 'simpletest_turbo_optimized',
+    );
+  }
+  public function setUp() {
+    // Set up your own tests with a setUp() function like this
+    // in order to benefit from turbo speed.
+    if (module_exists('simpletest_turbo')) {
+      $id = simpletest_turbo_id('simpletest_turboOptimized');
+      if (db_table_exists('fasttest' . $id . 'node')) {
+        $this->prepareDatabasePrefix();
+        $this->prepareEnvironment();
+        $this->changeDatabasePrefix();
+        simpletest_turbo_copy_tables('fasttest' . $id, $this->databasePrefix);
+        variable_set('file_public_path', $this->public_files_directory); 
+        variable_set('file_private_path', $this->private_files_directory);
+        variable_set('file_temporary_path', $this->temp_files_directory);
+        $this->setup = TRUE;
+      }
+      else {
+        parent::setUp();
+        // remember all tables
+        simpletest_turbo_copy_tables($this->databasePrefix, 'fasttest' . $id);
+      }
+    }
+    else {
+      drupal_set_message(t('You should enable the simpletest_turbo module to see a difference in speed between the simpletest_turbo_optimized'));
+      parent::setUp();
+    }
+  }
+  public function testOne() {
+    $this->drupalGet('/');
+    $this->drupalLogin($this->drupalCreateUser(array('create article content')));
+    $edit = array(
+      'title' => $this->randomName(),
+    );
+    $this->drupalPost('node/add/article', $edit, 'Save');
+    $this->assertText($edit['title'], 'article title appears');
+  }
+  public function testTwo() {
+    $this->drupalGet('/');
+    $this->assertText('Username', 'Username text appears');
+  }
+  public function testThree() {
+    $this->drupalGet('/');
+    $this->assertText('Password', 'Password text appears');
+  }
+}
+
+class simpletest_turboOptimizedSubclass extends simpletest_turboOptimized {
+  public static function getInfo() {
+    // Note: getInfo() strings are not translated with t().
+    return array(
+      'name' => 'Optimized (subclass)',
+      'description' => 'Optimized (subclass)',
+      'group' => 'simpletest_turbo_optimized',
+    );
+  }
+  public function testFour() {
+    $this->drupalGet('/');
+    $this->assertText('Powered by', 'Powered by text appears');
+  }
+  public function testFive() {
+    $this->drupalGet('/');
+    $this->assertText('Drupal', 'Drupal text appears');
+  }
+}
+
+class simpletest_turboNotOptimized extends DrupalWebTestCase {
+  public static function getInfo() {
+    // Note: getInfo() strings are not translated with t().
+    return array(
+      'name' => 'Not optimized',
+      'description' => 'Not optimized',
+      'group' => 'simpletest_turbo_not_optimized',
+    );
+  }
+  public function setUp() {
+    parent::setUp();
+  }
+  public function testOne() {
+    $this->drupalGet('/');
+    $this->drupalLogin($this->drupalCreateUser(array('create article content')));
+    $edit = array(
+      'title' => $this->randomName(),
+    );
+    $this->drupalPost('node/add/article', $edit, 'Save');
+    $this->assertText($edit['title'], 'article title appears');
+  }
+  public function testTwo() {
+    $this->drupalGet('/');
+    $this->assertText('Username', 'Username text appears');
+  }
+  public function testThree() {
+    $this->drupalGet('/');
+    $this->assertText('Password', 'Password text appears');
+  }
+}
+
+class simpletest_turboNotOptimizedSubclass extends simpletest_turboNotOptimized {
+  public static function getInfo() {
+    // Note: getInfo() strings are not translated with t().
+    return array(
+      'name' => 'Not optimized (subclass)',
+      'description' => 'Not optimized (subclass)',
+      'group' => 'simpletest_turbo_not_optimized',
+    );
+  }
+  public function testFour() {
+    $this->drupalGet('/');
+    $this->assertText('Powered by', 'Powered by text appears');
+  }
+  public function testFive() {
+    $this->drupalGet('/');
+    $this->assertText('Drupal', 'Drupal text appears');
+  }
+}

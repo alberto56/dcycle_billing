@@ -1,0 +1,51 @@
+<?php 
+/**
+ * @file
+ * This file contains the testing code for this module
+ */
+
+/**
+ * The test case
+ */
+class realistic_dummy_content_UnitTestCase extends DrupalUnitTestCase {
+  /**
+   * Info for this test case.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => t('Realistic dummy content unit test'),
+      'description' => t('Test pure functions for Realistic dummy content.'),
+      'group' => 'Realistic dummy content',
+    );
+  }
+
+  public function setUp() {
+    // specifically include files which contain functions to test.
+    module_load_include('module', 'realistic_dummy_content_api');
+    parent::setUp();
+  }
+
+  /*
+   * Test case for realistic_dummy_content_api.
+   */
+  public function testModule() {
+    // only pure functions should be tested here. The database is not available.
+    $user = (object)array();
+    $user->mail = 'whatever@example.com.invalid';
+    $this->assertTrue(realistic_dummy_content_api_realistic_dummy_content_api_dummy($user, 'user'), 'User with an email ending in .invalid is considered dummy content');
+
+    $user->mail = 'whatever@example.com';
+    $user->devel_generate = TRUE;
+$this->assertTrue(realistic_dummy_content_api_realistic_dummy_content_api_dummy($user, 'user'), 'User with the devel_generate property set is considered dummy content');
+
+    unset($user->devel_generate);
+$this->assertFalse(realistic_dummy_content_api_realistic_dummy_content_api_dummy($user, 'user'), 'User with neither an address ending in .invalid nor the devel_generate property set is considered non-dummy');
+
+    $node = (object)array();
+    $node->devel_generate = array();
+$this->assertTrue(realistic_dummy_content_api_realistic_dummy_content_api_dummy($node, 'node'), 'Node with the devel_generate property set to an empty array is considered dummy');
+
+    unset($node->devel_generate);
+$this->assertFALSE(realistic_dummy_content_api_realistic_dummy_content_api_dummy($node, 'node'), 'Node with the devel_generate not set is considered non-dummy');
+  }
+}

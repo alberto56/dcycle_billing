@@ -1,0 +1,1094 @@
+<?php
+/**
+ * @file
+ *
+ * 1: Hooks (help, perm, init, menu, theme, node_info)
+ * 2: Access functions
+ * 3: Load organization and project details
+ * 4: Invoice create / edit form
+ * 5: Invoice node manipulation functions
+ * 6: Admin settings
+ * 7: Views hook
+ * 8: Project Managementinvoiceitem legacy functions
+ */
+
+/**
+ * Implements hook_help().
+ */
+function pminvoice_help($path, $arg) {
+  $o = '';
+
+  switch ($path) {
+    case "admin/help#pminvoice":
+      $o = '<p>' . t("Provides invoice support for Project Management") . '</p>';
+      break;
+  }
+  return $o;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pminvoice_permission() {
+  return array(
+    'Project Management invoice: access' => array(
+      'title' => t('Access PM Invoice'),
+      'description' => t('Allows the user to see pages and blocks associated with the PM Invoice module, but does not control which invoices are shown within them.'),
+    ),
+    'Project Management invoice: add' => array(
+      'title' => t('Add PM Invoice'),
+      'description' => t('Allows the user to create an invoice.'),
+    ),
+    'Project Management invoice: delete all' => array(
+      'title' => t('Delete Any PM Invoice'),
+      'description' => t('Allows the user to delete any invoice.'),
+    ),
+    'Project Management invoice: delete own' => array(
+      'title' => t('Delete Authored PM Invoice'),
+      'description' => t('For invoices authored by the user, allows the user to delete the invoice.'),
+    ),
+    'Project Management invoice: delete of user organization' => array(
+      'title' => t('Delete PM Invoice in own Organization'),
+      'description' => t('For invoices assigned to the same PM Organization as a PM Person, allows the user associated with that Person to delete the invoice.'),
+    ),
+    'Project Management invoice: edit all' => array(
+      'title' => t('Edit Any PM Invoice'),
+      'description' => t('Allows the user to edit any invoice.'),
+    ),
+    'Project Management invoice: edit own' => array(
+      'title' => t('Edit Authored PM Invoice'),
+      'description' => t('For invoices authored by the user, allows the user to edit the invoices.'),
+    ),
+    'Project Management invoice: edit of user organization' => array(
+      'title' => t('Edit PM Invoice in own Organization'),
+      'description' => t('For invoices assigned to the same PM Organization as a PM Person, allows the user associated with that Person to edit the invoice.'),
+    ),
+    'Project Management invoice: view all' => array(
+      'title' => t('View Any PM Invoice'),
+      'description' => t('Allows the user to view any invoice and see any invoice in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management invoice: view own' => array(
+      'title' => t('View Authored PM Invoices'),
+      'description' => t('For invoices authored by the user, allows the user to view the invoice and see the invoice in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management invoice: view of user organization' => array(
+      'title' => t('View PM Invoices in own Organization'),
+      'description' => t('For invoices assigned to the same PM Organization as a PM Person, allows the user associated with that Person to view the invoice and see the invoice in lists or dropdowns elsewhere on the site.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function pminvoice_menu() {
+  $items = array();
+
+  $items['admin/config/pm/invoice'] = array(
+    'title' => 'Invoices',
+    'description' => 'Configure defaults shown on PM Invoices.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pminvoice_admin_settings'),
+    'access arguments' => array('Project Management: access administration pages'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pminvoice_theme() {
+  return array(
+    'pminvoice_view' => array(
+      'file'      => 'pminvoice.theme.inc',
+      'variables' => array('node', 'view_mode'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function pminvoice_node_info() {
+  return array(
+    'pminvoice' => array(
+      'name' => t('Invoice'),
+      'base' => 'pminvoice',
+      'description' => t("An invoice for Project Management."),
+      'title_label' => t("Description"),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function pminvoice_field_extra_fields() {
+  $extra['node']['pminvoice'] = array(
+    'form' => array(
+      'group1' => array(
+        'label' => 'Number',
+        'weight' => -19,
+      ),
+      'group2' => array(
+        'label' => 'Organization/Project/Reference Group',
+        'weight' => -18,
+      ),
+      'group4' => array(
+        'label' => 'Invoice Items',
+        'weight' => -14,
+      ),
+      'group5' => array(
+        'label' => 'Price Group',
+        'weight' => -13,
+      ),
+    ),
+  );
+  return $extra;
+}
+
+/**
+ * Implements hook_field_extra_fields_alter().
+ */
+function pminvoice_field_extra_fields_alter(&$info) {
+  $info['node']['pminvoice']['form']['title']['weight'] = -20;
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function pminvoice_node_access($node, $op, $account = NULL) {
+  $type = is_string($node) ? $node : $node->type;
+  if ($type == 'pminvoice') {
+    // If no account is specified, assume that the check is against the current logged in user
+    if (is_null($account)) {
+      global $user;
+      $account = $user;
+    }
+    if ($op == 'create' AND user_access('Project Management invoice: add', $account)) {
+      return NODE_ACCESS_ALLOW;
+    }
+  }
+  return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Implements pmorganization_change().
+ */
+function pminvoice_pmorganization_change($organization_nid, $organization_title) {
+  db_update('pminvoice')
+    ->fields(array('organization_title' => $organization_title))
+    ->condition('organization_nid', $organization_nid)
+    ->execute();
+}
+
+/**
+ * Implements pmorganization_change().
+ */
+function pminvoice_pmproject_change($project_nid, $project_title) {
+  db_update('pminvoice')
+    ->fields(array('project_title' => $project_title))
+    ->condition('project_nid', $project_nid)
+    ->execute();
+}
+
+/**
+ * Implements pmproject_change_hierarchy().
+ */
+function pminvoice_pmproject_change_hierarchy($project_nid, $organization_nid, $organization_title) {
+  db_update('pminvoice')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+    ))
+    ->condition('project_nid', $project_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_form().
+ */
+function pminvoice_form(&$node, $form_state) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Invoices'), 'pm/invoices');
+  drupal_set_breadcrumb($breadcrumb);
+
+  $type = node_type_get_type($node);
+  $info = field_info_extra_fields('node', 'pminvoice', 'form');
+
+  $form['#attributes']['class'] = 'pmcomponent_node_form';
+
+  $form['group1'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group1']['weight'],
+  );
+
+  $form['group1']['number'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number'),
+    '#required' => TRUE,
+    '#size' => 10,
+    '#default_value' => isset($node->number) ? $node->number : pminvoice_get_invoice_number(),
+  );
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => check_plain($type->title_label),
+    '#required' => TRUE,
+    '#default_value' => $node->title,
+    '#weight' => $info['title']['weight'],
+  );
+
+  $form['group2'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group2']['weight'],
+  );
+
+  $org_query = db_select('node', 'n');
+  $org_query->join('pmorganization', 'sor', 'n.vid = sor.vid');
+  $org_result = $org_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmorganization')
+    ->condition('sor.isactive', 1)
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $organizations = array();
+  foreach ($org_result as $organization) {
+    $organizations[$organization->nid] = $organization->title;
+    if (!isset($node->organization_nid)) $node->organization_nid = $organization->nid;
+  }
+  $form['group2']['organization_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Organization'),
+    '#default_value' => isset($node->organization_nid) ? $node->organization_nid : NULL,
+    '#options' => $organizations,
+    '#required' => TRUE,
+    '#ajax' => array(
+      'callback' => 'pminvoice_ajax_organization_nid',
+      'wrapper' => 'pminvoice-project-nid',
+    ),
+  );
+
+  if (isset($node->organization_nid)) {
+    $organization_nid = isset($form_state['values']['organization_nid']) ? $form_state['values']['organization_nid'] : $node->organization_nid;
+  }
+  else {
+    drupal_set_message(t('Please add an organization to the system before trying to add an invoice.'), 'error');
+    $organization_nid = NULL;
+  }
+
+  $pro_query = db_select('node', 'n');
+  $pro_query->join('pmproject', 'spr', 'n.vid = spr.vid');
+  $pro_result = $pro_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmproject')
+    ->condition('spr.organization_nid', $organization_nid)
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $projects = array();
+  foreach ($pro_result as $project) {
+    $projects[$project->nid] = $project->title;
+  }
+  $projects = array(0 => '-') + $projects;
+  $form['group2']['project_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Project'),
+    '#default_value' => isset($node->project_nid) ? $node->project_nid : NULL,
+    '#options' => $projects,
+    '#prefix' => '<div id="pminvoice-project-nid">',
+    '#suffix' => '</div>',
+  );
+
+  $form['group2']['reference'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Reference'),
+    '#default_value' => isset($node->reference) ? $node->reference : NULL,
+    '#size' => 40,
+  );
+
+  $form['group4'] = array(
+    '#type' => 'markup',
+    '#weight' => $info['group4']['weight'],
+  );
+
+  $count = (isset($node->items)) ? count($node->items) : 0;
+  for ($k = $count; $k <= $count + 2; $k++) {
+    $node->items[$k] = new stdClass;
+    $node->items[$k]->tax1app = variable_get('pm_tax1_app', 1);
+    $node->items[$k]->tax1percent = variable_get('pm_tax1_percent', 20);
+    $node->items[$k]->tax2app = variable_get('pm_tax2_app', 0);
+    $node->items[$k]->tax2percent = variable_get('pm_tax2_percent', 20);
+    $node->items[$k]->new_item = TRUE;
+  }
+
+  $i = 0;
+  foreach ($node->items as $item) {
+    $form['group4'][$i] = array(
+      '#type' => 'fieldset',
+      '#title' => isset($node->items[$i]->new_item) ? 'New item' : 'Item ' . ($i + 1),
+      '#collapsible' => TRUE,
+      '#collapsed' => isset($node->items[$i]->new_item) ? TRUE : FALSE,
+      '#weight' => $i,
+    );
+
+    $form['group4'][$i]['first'] = array(
+      '#type' => 'markup',
+      '#theme' => 'pm_form_group',
+      '#weight' => 1,
+    );
+
+    $form['group4'][$i]['first']['items_' . $i . '_description'] = array(
+      '#type' => 'textfield',
+      '#title' => 'Item description',
+      '#default_value' => isset($node->items[$i]->description) ? $node->items[$i]->description : NULL,
+      '#size' => 80,
+    );
+
+
+    $form['group4'][$i]['first']['items_' . $i . '_amount'] = array(
+      '#type' => 'textfield',
+      '#withnull' => 'true',
+      '#title' => t('Amount'),
+      '#size' => 15,
+      '#default_value' => isset($node->items[$i]->amount) ? $node->items[$i]->amount : 0,
+    );
+
+    $form['group4'][$i]['first']['items_' . $i . '_weight'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Weight'),
+      '#size' => 3,
+      '#maxlength' => 3,
+      '#default_value' => isset($node->items[$i]->weight) ? $node->items[$i]->weight : 0,
+    );
+
+    $form['group4'][$i]['tax1'] = array(
+      '#type' => 'markup',
+      '#theme' => 'pm_form_group',
+      '#weight' => 2,
+    );
+
+    $form['group4'][$i]['tax1']['items_' . $i . '_tax1app'] = array(
+      '#type' => 'select',
+      '#title' => t('@tax1 Application', array('@tax1' => variable_get('pm_tax1_name', 'Tax 1'))),
+      '#options' => array(
+        1 => t('Apply to item amount'),
+        0 => t('Do not apply tax'),
+      ),
+      '#default_value' => $node->items[$i]->tax1app,
+    );
+
+    $form['group4'][$i]['tax1']['items_' . $i . '_tax1percent'] = array(
+      '#type' => 'textfield',
+      '#title' => t('@tax1 Percentage', array('@tax1' => variable_get('pm_tax1_name', 'Tax 1'))),
+      '#default_value' => $node->items[$i]->tax1percent,
+      '#size' => 20,
+    );
+
+    $form['group4'][$i]['tax2'] = array(
+      '#type' => 'markup',
+      '#theme' => 'pm_form_group',
+      '#weight' => 3,
+    );
+
+    $form['group4'][$i]['tax2']['items_' . $i . '_tax2app'] = array(
+      '#type' => 'select',
+      '#title' => t('@tax2 Application', array('@tax2' => variable_get('pm_tax2_name', 'Tax 2'))),
+      '#options' => array(
+        2 => t('Apply to total of item amount plus previous tax'),
+        1 => t('Apply to item amount'),
+        0 => t('Do not apply tax'),
+      ),
+      '#default_value' => $node->items[$i]->tax2app,
+    );
+
+    $form['group4'][$i]['tax2']['items_' . $i . '_tax2percent'] = array(
+      '#type' => 'textfield',
+      '#title' => t('@tax2 Percentage', array('@tax2' => variable_get('pm_tax2_name', 'Tax 2'))),
+      '#default_value' => $node->items[$i]->tax2percent,
+      '#size' => 20,
+    );
+
+    $form['group4'][$i]['first']['items_' . $i . '_src_nid'] = array(
+      '#type' => 'hidden',
+      '#default_value' => isset($node->items[$i]->src_nid) ? $node->items[$i]->src_nid : NULL,
+    );
+
+    $form['group4'][$i]['first']['items_' . $i . '_src_vid'] = array(
+      '#type' => 'hidden',
+      '#default_value' => isset($node->items[$i]->src_vid) ? $node->items[$i]->src_vid : NULL,
+    );
+
+    if (!variable_get('pm_tax_display', TRUE)) {
+      $form['group4'][$i]['tax1']['#type'] = 'hidden';
+      $form['group4'][$i]['tax2']['#type'] = 'hidden';
+    }
+    if (!variable_get('pm_tax2_display', TRUE)) {
+      $form['group4'][$i]['tax2']['#type'] = 'hidden';
+    }
+
+    $form['group4'][$i]['items_' . $i . '_total'] = array(
+      '#type' => 'hidden',
+      '#default_value' => isset($node->items[$i]->total) ? $node->items[$i]->total : NULL,
+    );
+
+    $i++;
+  } // foreach
+
+  $form['group5'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group5']['weight'],
+  );
+
+  $form['group5']['amount'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Amount'),
+    '#size' => 15,
+    '#default_value' => isset($node->amount) ? $node->amount : NULL,
+  );
+
+  $form['group5']['tax1'] = array(
+    '#type' => 'textfield',
+    '#title' => variable_get('pm_tax1_name', 'Tax 1'),
+    '#size' => 15,
+    '#default_value' => isset($node->tax1) ? $node->tax1 : NULL,
+  );
+
+  $form['group5']['tax2'] = array(
+    '#type' => 'textfield',
+    '#title' => variable_get('pm_tax2_name', 'Tax 2'),
+    '#size' => 15,
+    '#default_value' => isset($node->tax2) ? $node->tax2 : NULL,
+  );
+
+  $form['group5']['total'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Total'),
+    '#size' => 15,
+    '#default_value' => isset($node->total) ? $node->total : NULL,
+  );
+
+  if (!variable_get('pm_tax_display', TRUE)) {
+    $form['group5']['tax1']['#type'] = 'hidden';
+    $form['group5']['tax2']['#type'] = 'hidden';
+    $form['group5']['total']['#type'] = 'hidden';
+  }
+
+  if (!variable_get('pm_tax2_display', TRUE)) {
+    $form['group5']['tax2']['#type'] = 'hidden';
+  }
+
+  $form['group5']['totalcustomercurr'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Total in customer currency'),
+    '#size' => 15,
+    '#default_value' => isset($node->totalcustomercurr) ? $node->totalcustomercurr : NULL,
+  );
+
+  return $form;
+}
+
+/**
+ * Ajax callback for the organization nid field on a pminvoice node.
+ */
+function pminvoice_ajax_organization_nid(&$form, &$form_state) {
+  return $form['group2']['project_nid'];
+}
+
+/**
+ * Implements hook_insert().
+ */
+function pminvoice_insert($node) {
+  _pminvoice_beforesave($node);
+
+  $node->taxexempt = (isset($node->taxexempt)) ? $node->taxexempt : NULL;
+  $node->src_nid = (isset($node->src_nid)) ? $node->src_nid : NULL;
+  $node->src_vid = (isset($node->src_vid)) ? $node->src_vid : NULL;
+
+  db_insert('pminvoice')
+  ->fields(array(
+    'vid' => $node->vid,
+    'nid' => $node->nid,
+    'number' => $node->number,
+    'reference' => $node->reference,
+    'organization_nid' => $node->organization_nid,
+    'organization_title' => $node->organization_title,
+    'project_nid' => $node->project_nid,
+    'project_title' => $node->project_title,
+    'taxexempt' => $node->taxexempt,
+    'src_nid' => $node->src_nid,
+    'src_vid' => $node->src_vid,
+  ))
+  ->execute();
+
+  // Insert invoice items
+  _pminvoice_insert_items($node);
+
+  _pminvoice_aftersave($node);
+}
+
+/**
+ * Implements hook_update().
+ */
+function pminvoice_update($node) {
+  _pminvoice_beforesave($node);
+
+  if ($node->revision) {
+    pminvoice_insert($node);
+  }
+  else {
+    db_update('pminvoice')
+    ->fields(array(
+      'number' => $node->number,
+      'reference' => $node->reference,
+      'organization_nid' => $node->organization_nid,
+      'organization_title' => $node->organization_title,
+      'project_nid' => $node->project_nid,
+      'project_title' => $node->project_title,
+      'amount' => $node->amount,
+      'tax1' => $node->tax1,
+      'tax2' => $node->tax2,
+      'total' => $node->total,
+      'totalcustomercurr' => $node->totalcustomercurr,
+      'taxexempt' => $node->taxexempt,
+      'src_nid' => $node->src_nid,
+      'src_vid' => $node->src_vid,
+    ))
+    ->condition('vid', $node->vid)
+    ->execute();
+
+    // Update invoice items
+    db_delete('pminvoice_items')
+    ->condition('invoice_vid', $node->vid)
+    ->execute();
+
+    _pminvoice_insert_items($node);
+
+    _pminvoice_aftersave($node);
+  }
+}
+
+/**
+ * Prepares pminvoice for saving.
+ */
+function _pminvoice_beforesave(&$node) {
+  // Allow use of comma when inputting numerical values - str_replace with period decimal
+  $node->amount = floatval(str_replace(',', '.', $node->amount));
+  $node->tax1 = floatval(str_replace(',', '.', $node->tax1));
+  $node->tax2 = floatval(str_replace(',', '.', $node->tax2));
+  $node->total = floatval(str_replace(',', '.', $node->total));
+  $node->totalcustomercurr = floatval(str_replace(',', '.', $node->totalcustomercurr));
+
+  $org_result = db_select('node', 'n')
+    ->fields('n', array('title'))
+    ->condition('n.type', 'pmorganization')
+    ->condition('n.nid', $node->organization_nid)
+    ->execute();
+  $organization = $org_result->fetchObject();
+  $node->organization_title = $organization->title;
+
+  if (isset($node->project_nid)) {
+    $pro_result = db_select('node', 'n')
+      ->fields('n', array('title'))
+      ->condition('n.type', 'pmproject')
+      ->condition('n.nid', $node->project_nid)
+      ->execute();
+    $project = $pro_result->fetchObject();
+    $node->project_title = (isset($project->title)) ? $project->title : NULL;
+  }
+
+  // Parse invoice items
+  // from linear to array/object combination
+  $j = 0;
+  $variable = 'items_' . $j . '_description';
+  while (isset($node->$variable)) {
+    $node->items[$j]->description = $node->$variable;
+    $variable = 'items_' . $j . '_amount';
+    $node->items[$j]->amount = str_replace(',', '.', $node->$variable);
+    $variable = 'items_' . $j . '_tax1app';
+    $node->items[$j]->tax1app = $node->$variable;
+    $variable = 'items_' . $j . '_tax1percent';
+    $node->items[$j]->tax1percent = $node->$variable;
+    $variable = 'items_' . $j . '_tax2app';
+    $node->items[$j]->tax2app = $node->$variable;
+    $variable = 'items_' . $j . '_tax2percent';
+    $node->items[$j]->tax2percent = $node->$variable;
+    $variable = 'items_' . $j . '_weight';
+    $node->items[$j]->weight = (isset($node->$variable)) ? $node->$variable : $j;
+
+    $variable = 'items_' . $j . '_src_nid';
+    $node->items[$j]->src_nid = $node->$variable;
+
+    $variable = 'items_' . $j . '_src_vid';
+    $node->items[$j]->src_vid = $node->$variable;
+    // Update taxes
+    pm_taxation($node->items[$j]);
+
+    $j++;
+    $variable = 'items_' . $j . '_description';
+  }
+}
+
+/**
+ * Save invoice items to database.
+ */
+function _pminvoice_insert_items($node) {
+  foreach ($node->items as $j => $item) {
+    $node->items[$j]->src_nid = (isset($node->items[$j]->src_nid)) ? $node->items[$j]->src_nid : $node->src_nid;
+    $node->items[$j]->src_vid = (isset($node->items[$j]->src_vid)) ? $node->items[$j]->src_vid : $node->src_vid;
+
+    db_insert('pminvoice_items')
+    ->fields(array(
+      'invoice_nid' => $node->nid,
+      'invoice_vid' => $node->vid,
+      'amount' => $item->amount,
+      'description' => $item->description,
+      'tax1app' => $item->tax1app,
+      'tax1percent' => $item->tax1percent,
+      'tax1' => $item->tax1,
+      'tax2app' => $item->tax2app,
+      'tax2percent' => $item->tax2percent,
+      'tax2' => $item->tax2,
+      'total' => $item->total,
+      'weight' => $item->weight,
+//      'src_nid' => $node->items[$j]->src_nid,
+//      'src_vid' => $node->items[$j]->src_vid,
+    ))
+    ->execute();
+  }
+
+  db_delete('pminvoice_items')
+  ->condition('invoice_vid', $node->vid)
+  ->condition('total', 0)
+  ->condition('description', '')
+  ->execute();
+}
+
+/**
+ * Calculate sums for amount and taxes and save to database.
+ */
+function _pminvoice_aftersave($node) {
+  // Updates totals
+  $query = db_select('pminvoice_items', 'sii');
+  $query->addExpression('sum(amount)', 'tamount');
+  $query->addExpression('sum(tax1)', 'ttax1');
+  $query->addExpression('sum(tax2)', 'ttax2');
+  $query->addExpression('sum(total)', 'ttotal');
+  $query->condition('invoice_vid', $node->vid);
+  $result = $query->execute();
+
+  $t = $result->fetchObject();
+
+  $node->amount = $t->tamount;
+  $node->tax1 = $t->ttax1;
+  $node->tax2 = $t->ttax2;
+  $node->total = $t->ttotal;
+
+  if (!$node->totalcustomercurr) {
+    $node->totalcustomercurr = $node->total;
+  }
+
+  db_update('pminvoice')
+  ->fields(array(
+    'amount' => $node->amount,
+    'tax1' => $node->tax1,
+    'tax2' => $node->tax2,
+    'total' => $node->total,
+    'totalcustomercurr' => $node->totalcustomercurr,
+  ))
+  ->condition('vid', $node->vid)
+  ->execute();
+}
+
+/**
+ * Implements hook_node_revision_delete().
+ */
+function pminvoice_node_revision_delete($node) {
+  db_delete('pminvoice')
+    ->condition('vid', $node->vid)
+    ->execute();
+
+  db_delete('pminvoice_items')
+    ->condition('invoice_vid', $node->vid)
+    ->execute();
+}
+
+/**
+ * Implements hook_delete().
+ */
+function pminvoice_delete($node) {
+  db_delete('pminvoice')
+  ->condition('nid', $node->nid)
+  ->execute();
+
+  db_delete('pminvoice_items')
+  ->condition('invoice_nid', $node->nid)
+  ->execute();
+}
+
+/**
+ * Implements hook_load().
+ */
+function pminvoice_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $result = db_select('pminvoice', 'pmin')
+      ->fields('pmin')
+      ->condition('vid', $node->vid)
+      ->execute();
+    $record = array();
+    $record = $result->fetchAssoc();
+    if ($record) {
+      foreach ($record as $key => $value) {
+        $node->$key = $value;
+      }
+    }
+
+    $node->title_old = $node->title;
+
+    // Load invoice items
+    $result = db_select('pminvoice_items', 'pmini')
+      ->fields('pmini')
+      ->condition('invoice_vid', $node->vid)
+      ->orderBy('weight')
+      ->execute();
+    $node->items = array();
+    foreach ($result as $item) {
+      $node->items[] = $item;
+    }
+  }
+}
+
+/**
+ * Implements hook_view().
+ */
+function pminvoice_view($node, $view_mode) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Invoices'), 'pm/invoices');
+  drupal_set_breadcrumb($breadcrumb);
+
+  return theme('pminvoice_view', array('node' => $node, 'view_mode' => $view_mode));
+}
+
+/**
+ * Admin settings form for pminvoice module
+ */
+function pminvoice_admin_settings() {
+  $form = array();
+
+  $form['pminvoice_hours_per_day'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of hours in a day'),
+    '#default_value' => variable_get('pminvoice_hours_per_day', 8),
+    '#description' => t('Number of hours in a day, used for calculating the daily rate.'),
+    '#size' => 3,
+  );
+
+  $form['pminvoice_payment_modes'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Modes for invoice payment'),
+    '#default_value' => variable_get('pminvoice_payment_modes', ''),
+    '#description' => t('Modes for invoice payment'),
+  );
+
+  $form['pminvoice_payment_terms'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Payment terms'),
+    '#default_value' => variable_get('pminvoice_payment_terms', t('Due on receipt')),
+    '#description' => t('Payment terms'),
+    '#size' => 50,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pminvoice_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'pminvoice'),
+  );
+}
+
+/**
+ * Helper function to return items for a particular invoice.
+ */
+function pminvoice_getitems($invoice_vid) {
+  $s = "SELECT sit.* FROM {pminvoice_items} AS sit WHERE sit.invoice_vid = %d ORDER BY sit.weight ASC";
+  $r = db_query($s, $invoice_vid);
+
+  $items = array();
+  while ($i = db_fetch_object($r)) {
+    $items[] = $i;
+  }
+  return $items;
+}
+
+/**
+ * Creates next incremental invoice number.
+ *
+ * @return
+ *   varchar text value of the calculated invoice number
+ */
+function pminvoice_get_invoice_number() {
+  $date = getdate();
+
+  $result = db_select('pminvoice', 'sin')
+  ->fields('sin', array('number'))
+  ->execute();
+
+  $existing = array(0);
+
+  foreach ($result as $record) {
+    $pos = strpos($record->number, '/');
+    $left = $pos;
+    $right = strlen($record->number) - $pos;
+
+    if (substr($record->number, 1 - $right) == $date['year']) {
+      $existing[] = substr($record->number, 0, $left);
+    }
+  }
+
+  $increment = max($existing) + 1;
+
+  $new_invoice_number = $increment . '/' . $date['year'];
+
+  return $new_invoice_number;
+}
+
+/*
+ * Implements hook_token_list().
+ */
+function pminvoice_token_list($type='all') {
+  $tokens = array();
+  if (($type == 'node') || ($type == 'all')) {
+    $tokens['node']['pminvoice-number'] = t('Project Management Invoice: Number.');
+    $tokens['node']['pminvoice-reference'] = t('Project Management Invoice: Reference.');
+    $tokens['node']['pminvoice-organization-nid'] = t('Project Management Invoice: Organization Node ID.');
+    $tokens['node']['pminvoice-organization-title'] = t('Project Management Invoice: Organization Title.');
+    $tokens['node']['pminvoice-project-nid'] = t('Project Management Invoice: Project Node ID.');
+    $tokens['node']['pminvoice-project-title'] = t('Project Management Invoice: Project Title.');
+    $tokens['node']['pminvoice-amount'] = t('Project Management Invoice: Amount.');
+    $tokens['node']['pminvoice-total'] = t('Project Management Invoice: Total.');
+    $tokens['node']['pminvoice-totalcustomer'] = t('Project Management Invoice: Total in customer currency.');
+    $tokens['node']['pminvoice-taxexempt'] = t('Project Management Invoice: Tax Exempt.');
+    if (variable_get('pm_tax1_app', 0)) {
+      $tokens['node']['pminvoice-tax1'] = t('Project Management Invoice: ' . variable_get('pm_tax1_name', 'VAT') . '.');
+    }
+    if (variable_get('pm_tax2_app', 0)) {
+      $tokens['node']['pminvoice-tax2'] = t('Project Management Invoice: ' . variable_get('pm_tax2_name', 'Tax 2') . '.');
+    }
+  }
+  return $tokens;
+}
+
+/**
+ * Implements hook_token_values().
+ */
+function pminvoice_token_values($type, $object = NULL) {
+  $values = array();
+  $node = $object;
+  if ((($type == 'node') || ($type == 'all')) && ($node->type === 'pminvoice')) {
+    $values['pminvoice-number'] = $node->number;
+    $values['pminvoice-reference'] = $node->reference;
+    $values['pminvoice-organization-nid'] = $node->organization_nid;
+    $values['pminvoice-organization-title'] = $node->organization_title;
+    $values['pminvoice-project-nid'] = $node->project_nid;
+    $values['pminvoice-project-title'] = $node->project_title;
+    $values['pminvoice-amount'] = $node->amount;
+    $values['pminvoice-total'] = $node->total;
+    $values['pminvoice-totalcustomer'] = $node->totalcustomer;
+    $values['pminvoice-taxexempt'] = $node->taxexempt;
+    if (variable_get('pm_tax1_app', 0)) {
+      $values['pminvoice-tax1'] = $node->tax1;
+    }
+    if (variable_get('pm_tax2_app', 0)) {
+      $values['pminvoice-tax2'] = $node->tax2;
+    }
+  return $values;
+  }
+}
+
+/**
+ * Implements hook_node_access_records().
+ */
+function pminvoice_node_access_records($node) {
+  if (empty($node->status)) {
+    // Lets Drupal take care of permission to unpublished nodes.
+    return array();
+  }
+  $type = is_string($node) ? $node : $node->type;
+  $grants = array();
+  if ($type == 'pminvoice') {
+    // Project Management invoice: view all
+    $grants[] = array(
+      'realm' => 'pminvoice_view_all',
+      'gid' => 0,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management invoice: view own
+    $grants[] = array(
+      'realm' => 'pminvoice_view_own',
+      'gid' => $node->uid,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management invoice: view of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pminvoice_view_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 1,
+        'grant_update' => 0,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management invoice: edit all
+    $grants[] = array(
+      'realm' => 'pminvoice_update_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management invoice: edit own
+    $grants[] = array(
+      'realm' => 'pminvoice_update_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management invoice: edit of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pminvoice_update_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 1,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management invoice: delete all
+    $grants[] = array(
+      'realm' => 'pminvoice_delete_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management invoice: delete own
+    $grants[] = array(
+      'realm' => 'pminvoice_delete_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management invoice: delete of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pminvoice_delete_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 0,
+        'grant_delete' => 1,
+        'priority' => 0,
+      );
+    }
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_node_grants().
+ */
+function pminvoice_node_grants($account, $op) {
+
+  if (module_exists('pmperson')) {
+    _pmperson_user_load($account);
+  }
+  $grants = array();
+  switch ($op) {
+    case 'view':
+      if (user_access('Project Management invoice: view all', $account)) {
+        $grants['pminvoice_view_all'] = array(0);
+      }
+      if (user_access('Project Management invoice: view own', $account)) {
+        $grants['pminvoice_view_own'] = array($account->uid);
+      }
+      if (user_access('Project Management invoice: view of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pminvoice_view_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+
+    case 'update':
+      if (user_access('Project Management invoice: edit all', $account)) {
+        $grants['pminvoice_update_all'] = array(0);
+      }
+      if (user_access('Project Management invoice: edit own', $account)) {
+        $grants['pminvoice_update_own'] = array($account->uid);
+      }
+      if (user_access('Project Management invoice: edit of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pminvoice_update_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+
+    case 'delete':
+      if (user_access('Project Management invoice: delete all', $account)) {
+        $grants['pminvoice_delete_all'] = array(0);
+      }
+      if (user_access('Project Management invoice: delete own', $account)) {
+        $grants['pminvoice_delete_own'] = array($account->uid);
+      }
+      if (user_access('Project Management invoice: delete of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pminvoice_delete_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_pm_dashboard_links().
+ */
+function pminvoice_pm_dashboard_links($type) {
+  $links = array();
+  if ($type == 'page' || $type == 'block') {
+    $links[] = array(
+      'theme' => 'pm_dashboard_link',
+      'title' => t('Invoices'),
+      'icon' => 'pminvoices',
+      'path' => 'pm/invoices',
+      'params' => array(),
+      'node_type' => 'pminvoice',
+      'add_type' => 'pminvoice',
+      'map' => array(),
+      'weight' => 10,
+    );
+  }
+  return $links;
+}

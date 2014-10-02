@@ -1,0 +1,902 @@
+<?php
+/**
+ * @file
+ * Hook implementations and main functions for PM Expense.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function pmexpense_help($path, $arg) {
+  $o = '';
+
+  switch ($path) {
+    case "admin/help#pmexpense":
+      $o = '<p>' . t("Provides expense support for Project Management") . '</p>';
+      break;
+  }
+
+  return $o;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pmexpense_permission() {
+  return array(
+    'Project Management expense: access' => array(
+      'title' => t('Access PM Expense'),
+      'description' => t('Allows the user to see pages and blocks associated with the PM Expense module, but does not control which expenses are shown within them.'),
+    ),
+    'Project Management expense: add' => array(
+      'title' => t('Add PM Expense'),
+      'description' => t('Allows the user to create an expense.'),
+    ),
+    'Project Management expense: delete all' => array(
+      'title' => t('Delete Any PM Expense'),
+      'description' => t('Allows the user to delete any expense.'),
+    ),
+    'Project Management expense: delete own' => array(
+      'title' => t('Delete Authored PM Expense'),
+      'description' => t('For expenses authored by the user, allows the user to delete the expense.'),
+    ),
+    'Project Management expense: delete of user organization' => array(
+      'title' => t('Delete PM Expense in own Organization'),
+      'description' => t('For expenses assigned to the same PM Organization as a PM Person, allows the user associated with that Person to delete the expense.'),
+    ),
+    'Project Management expense: edit all' => array(
+      'title' => t('Edit Any PM Expense'),
+      'description' => t('Allows the user to edit any expense.'),
+    ),
+    'Project Management expense: edit own' => array(
+      'title' => t('Edit Authored PM Expense'),
+      'description' => t('For expenses authored by the user, allows the user to edit the expense.'),
+    ),
+    'Project Management expense: edit of user organization' => array(
+      'title' => t('Edit PM Expense in own Organization'),
+      'description' => t('For expenses assigned to the same PM Organization as a PM Person, allows the user associated with that Person to edit the expense.'),
+    ),
+    'Project Management expense: view all' => array(
+      'title' => t('View Any PM Expense'),
+      'description' => t('Allows the user to view any expense and see any expense in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management expense: view own' => array(
+      'title' => t('View Authored PM Expense'),
+      'description' => t('For expenses authored by the user, allows the user to view the expense and see the expense in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management expense: view of user organization' => array(
+      'title' => t('View PM Expense in own Organization'),
+      'description' => t('For expenses assigned to the same PM Organization as a PM Person, allows the user associated with that Person to view the expense and see the expense in lists or dropdowns elsewhere on the site.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function pmexpense_node_access($node, $op, $account = NULL) {
+  $type = is_string($node) ? $node : $node->type;
+  if ($type == 'pmexpense') {
+    // If no account is specified, assume that the check is against the current logged in user
+    if (is_null($account)) {
+      global $user;
+      $account = $user;
+    }
+    if ($op == 'create' AND user_access('Project Management expense: add', $account)) {
+      return NODE_ACCESS_ALLOW;
+    }
+  }
+  return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function pmexpense_menu() {
+  $items = array();
+
+  $items['pm/expenses/provider_autocomplete'] = array(
+    'title' => 'Provider autocomplete',
+    'page callback' => 'pmexpense_autocomplete',
+    'access arguments' => array('Project Management expense: access'),
+    'type' => MENU_CALLBACK,
+    'file' => 'pmexpense.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pmexpense_theme() {
+  return array(
+    'pmexpense_view' => array(
+      'file'      => 'pmexpense.theme.inc',
+      'variables' => array('node', 'view_mode'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function pmexpense_node_info() {
+  return array(
+    'pmexpense' => array(
+      'name' => t('Expense'),
+      'base' => 'pmexpense',
+      'description' => t("An expense for Project Management."),
+      'title_label' => t("Title"),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function pmexpense_field_extra_fields() {
+  $extra['node']['pmexpense'] = array(
+    'form' => array(
+      'group1' => array(
+        'label' => 'Organization/Project/Task/Ticket Group',
+        'weight' => -20,
+      ),
+      'group2' => array(
+        'label' => 'Provider Group',
+        'weight' => -18,
+      ),
+      'group3' => array(
+        'label' => 'Amount',
+        'weight' => -17,
+      ),
+      'group4' => array(
+        'label' => 'Tax Group',
+        'weight' => -16,
+      ),
+    ),
+  );
+  return $extra;
+}
+
+/**
+ * Implements hook_field_extra_fields_alter().
+ */
+function pmexpense_field_extra_fields_alter(&$info) {
+  $info['node']['pmexpense']['form']['title']['weight'] = -15;
+}
+
+/**
+ * Change organization_title in expense.
+ */
+function pmexpense_pmorganization_change($organization_nid, $organization_title) {
+  db_update('pmexpense')
+    ->fields(array('organization_title' => $organization_title))
+    ->condition('organization_nid', $organization_nid)
+    ->execute();
+}
+
+/**
+ * Change project_title in expense.
+ */
+function pmexpense_pmproject_change($project_nid, $project_title) {
+  db_update('pmexpense')
+    ->fields(array('project_title' => $project_title))
+    ->condition('project_nid', $project_nid)
+    ->execute();
+}
+
+/**
+ * Change task_title in expense.
+ */
+function pmexpense_pmtask_change($task_nid, $task_title, $task_stepno) {
+  db_update('pmexpense')
+    ->fields(array('task_title' => $task_title, 'task_stepno' => $task_stepno))
+    ->condition('task_nid', $task_nid)
+    ->execute();
+}
+
+/**
+ * Change ticket_title in expense.
+ */
+function pmexpense_pmticket_change($ticket_nid, $ticket_title) {
+  db_update('pmexpense')
+    ->fields(array('ticket_title' => $ticket_title))
+    ->condition('ticket_nid', $ticket_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmproject_change_hierarchy().
+ */
+function pmexpense_pmproject_change_hierarchy($project_nid, $organization_nid, $organization_title) {
+  $query = db_update('pmexpense')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+    ))
+    ->condition('project_nid', $project_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmtask_change_hierarchy().
+ */
+function pmexpense_pmtask_change_hierarchy($task_nid, $organization_nid, $organization_title, $project_nid, $project_title) {
+  $query = db_update('pmexpense')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+      'project_nid' => $project_nid,
+      'project_title' => $project_title,
+    ))
+    ->condition('task_nid', $task_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmticket_change_hierarchy().
+ */
+function pmexpense_pmticket_change_hierarchy($ticket_nid, $organization_nid, $organization_title, $project_nid, $project_title, $task_nid, $task_title) {
+  $query = db_update('pmexpense')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+      'project_nid' => $project_nid,
+      'project_title' => $project_title,
+      'task_nid' => $task_nid,
+      'task_title' => $task_title,
+    ))
+    ->condition('ticket_nid', $ticket_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmexpense_form().
+ */
+function pmexpense_form($node, $form_state) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Expenses'), 'pm/expenses');
+  drupal_set_breadcrumb($breadcrumb);
+
+  if (arg(1) == 'add') {
+    // Load tax defaults.
+    $node->tax1app = variable_get('pm_tax1_app', 1);
+    $node->tax1percent = variable_get('pm_tax1_percent', 20);
+    $node->tax2app = variable_get('pm_tax2_app', 0);
+    $node->tax2percent = variable_get('pm_tax2_percent', 20);
+  }
+
+  // Transition to compound tax - allow for nodes which may have been saved in
+  // the past without a tax percentage.
+  if ((arg(2) == 'edit') && ($node->tax1percent == NULL)) {
+    $node->tax1percent = $node->tax1 / $node->amount * 100;
+  }
+
+  $type = node_type_get_type($node);
+  $info = field_info_extra_fields('node', 'pmexpense', 'form');
+  $w = -100;
+
+  $form['#attributes']['class'] = 'pmcomponent_node_form';
+
+  $form['group1'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group1']['weight'],
+  );
+
+  $query = db_select('node', 'n');
+  $query->join('pmorganization', 'org', 'n.vid = org.vid');
+  $query
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmorganization')
+    ->addTag('node_access')
+    ->orderBy('title', 'ASC');
+
+  if (arg(1) == 'add') {
+    $query->condition('org.isactive', 1);
+  }
+
+  $result = $query->execute();
+
+  $organizations = array();
+  foreach ($result as $organization) {
+    $organizations[$organization->nid] = $organization->title;
+    if (!isset($node->organization_nid)) {
+      $node->organization_nid = $organization->nid;
+    }
+  }
+  $form['group1']['organization_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Organization'),
+    '#default_value' => $node->organization_nid,
+    '#options' => $organizations,
+    '#required' => TRUE,
+    '#ajax' => array(
+      'callback' => 'pmexpense_ajax_organization_nid',
+      'wrapper' => 'pmexpense-project-nid',
+    ),
+  );
+
+  if (isset($node->organization_nid)) {
+    $organization_nid = isset($form_state['values']['organization_nid']) ? $form_state['values']['organization_nid'] : $node->organization_nid;
+  }
+  else {
+    drupal_set_message(t('Please add an organization to the system before trying to add an expense.'), 'error');
+  }
+
+  $pro_query = db_select('node', 'n');
+  $pro_query->join('pmproject', 'spr', 'n.vid = spr.vid');
+  $pro_result = $pro_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('spr.organization_nid', $organization_nid)
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmproject')
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $projects = array();
+  foreach ($pro_result as $project) {
+    $projects[$project->nid] = $project->title;
+  }
+
+  $form['group1']['project_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Project'),
+    '#default_value' => isset($node->project_nid) ? $node->project_nid : 0,
+    '#options' => array(0 => '-') + $projects,
+    '#prefix' => '<div id="pmexpense-project-nid">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => 'pmexpense_ajax_project_nid',
+      'wrapper' => 'pmexpense-task-nid',
+    ),
+  );
+
+  $project_nid = isset($form_state['values']['project_nid']) ? $form_state['values']['project_nid'] : (isset($node->project_nid) ? $node->project_nid : 0);
+
+  $tree = isset($project_nid) ? _pmtask_get_tree($project_nid) : array();
+  $tasks = _pmtask_plain_tree($tree);
+  $form['group1']['task_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Task'),
+    '#default_value' => isset($node->task_nid) ? $node->task_nid : 0,
+    '#options' => array(0 => '-') + $tasks,
+    '#prefix' => '<div id="pmexpense-task-nid">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => 'pmexpense_ajax_task_nid',
+      'wrapper' => 'pmexpense-ticket-nid',
+    ),
+  );
+
+  $task_nid = isset($form_state['values']['task_nid']) ? $form_state['values']['task_nid'] : (isset($node->task_nid) ? $node->task_nid : 0);
+
+  $pro_query = db_select('node', 'n');
+  $pro_query->join('pmticket', 'pmti', 'n.vid = pmti.vid');
+  $pro_result = $pro_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('pmti.task_nid', $task_nid)
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmticket')
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $tickets = array();
+  foreach ($pro_result as $ticket) {
+    $tickets[$ticket->nid] = $ticket->title;
+  }
+
+  $ticket_nid = (isset($node->ticket_nid)) ? $node->ticket_nid : NULL;
+  $form['group1']['ticket_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Ticket'),
+    '#default_value' => $ticket_nid,
+    '#options' => array(0 => '-') + $tickets,
+    '#prefix' => '<div id="pmexpense-ticket-nid">',
+    '#suffix' => '</div>',
+  );
+
+  $form['group2'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group2']['weight'],
+  );
+
+  $form['group2']['provider_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Provider'),
+    '#size' => 50,
+    '#default_value' => (isset($node->provider_title)) ? $node->provider_title : NULL,
+    '#autocomplete_path' => 'pm/expenses/provider_autocomplete',
+  );
+
+  $form['group3'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group3']['weight'],
+  );
+
+  $form['group3']['amount'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Amount'),
+    '#default_value' => (isset($node->amount)) ? $node->amount : NULL,
+    '#size' => 15,
+  );
+
+  $form['group4'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group4']['weight'],
+  );
+
+  $form['group4']['tax1app'] = array(
+    '#type' => 'select',
+    '#title' => t('Tax 1 Application'),
+    '#options' => array(
+      1 => t('Apply to item amount'),
+      0 => t('Do not apply tax'),
+    ),
+    '#default_value' => $node->tax1app,
+  );
+
+  $form['group4']['tax1percent'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Tax 1 Percentage'),
+    '#default_value' => $node->tax1percent,
+    '#size' => 20,
+  );
+
+  $form['group4']['tax2app'] = array(
+    '#type' => 'select',
+    '#title' => t('Tax 2 Application'),
+    '#options' => array(
+      2 => t('Apply to total of item amount plus previous tax'),
+      1 => t('Apply to item amount'),
+      0 => t('Do not apply tax'),
+    ),
+    '#default_value' => $node->tax2app,
+  );
+
+  $form['group4']['tax2percent'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Tax 2 Percentage'),
+    '#default_value' => $node->tax2percent,
+    '#size' => 20,
+  );
+
+  if (!variable_get('pm_tax_display', TRUE)) {
+    $form['group4']['#type'] = 'hidden';
+  }
+  if (!variable_get('pm_tax2_display', TRUE)) {
+    $form['group4']['tax2app']['#type'] = 'hidden';
+    $form['group4']['tax2percent']['#type'] = 'hidden';
+  }
+
+  $form['taxnotes'] = array(
+    '#type' => 'markup',
+    '#markup' => t('Totals will be calculated automatically according to your tax selections.'),
+    '#weight' => $info['group4']['weight'],
+  );
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => check_plain($type->title_label),
+    '#required' => TRUE,
+    '#default_value' => $node->title,
+    '#weight' => $info['title']['weight'],
+  );
+
+  // Check to see if the body field is still there, if so, display it.
+  $body = field_get_items('pmexpense', $node, 'body');
+  if ($body) {
+    $form['body_field'] = $body;
+  }
+
+  return $form;
+}
+
+/**
+ * Ajax callback for the pmexpense organization nid field.
+ */
+function pmexpense_ajax_organization_nid(&$form, &$form_state) {
+  return $form['group1']['project_nid'];
+}
+
+/**
+ * Ajax callback for the pmexpense project nid field.
+ */
+function pmexpense_ajax_project_nid(&$form, &$form_state) {
+  return $form['group1']['task_nid'];
+}
+
+/**
+ * Ajax callback for the pmexpense task nid field.
+ */
+function pmexpense_ajax_task_nid(&$form, &$form_state) {
+  return $form['group1']['ticket_nid'];
+}
+
+/**
+ * Implements hook_insert().
+ */
+function pmexpense_insert($node) {
+  _pmexpense_beforesave($node);
+
+  db_insert('pmexpense')
+    ->fields(array(
+      'vid' => $node->vid,
+      'nid' => $node->nid,
+      'organization_nid' => $node->organization_nid,
+      'organization_title' => $node->organization_title,
+      'project_nid' => $node->project_nid,
+      'project_title' => (isset($node->project_title)) ? $node->project_title : NULL,
+      'task_nid' => $node->task_nid,
+      'task_title' => (isset($node->task_title)) ? $node->task_title : NULL,
+      'task_stepno' => (isset($node->task_stepno)) ? $node->task_stepno : NULL,
+      'ticket_nid' => $node->ticket_nid,
+      'ticket_title' => (isset($node->ticket_title)) ? $node->ticket_title : NULL,
+      'provider_nid' => (isset($node->provider_nid)) ? $node->provider_nid : NULL,
+      'provider_title' => $node->provider_title,
+      'amount' => $node->amount,
+      'tax1app' => $node->tax1app,
+      'tax1percent' => $node->tax1percent,
+      'tax1' => $node->tax1,
+      'subtotal' => $node->subtotal,
+      'tax2app' => $node->tax2app,
+      'tax2percent' => $node->tax2percent,
+      'tax2' => $node->tax2,
+      'total' => $node->total,
+    ))
+    ->execute();
+}
+
+/**
+ * Implements hook_update().
+ */
+function pmexpense_update($node) {
+  _pmexpense_beforesave($node);
+
+  if ($node->revision) {
+    pmexpense_insert($node);
+  }
+  else {
+    db_update('pmexpense')
+      ->fields(array(
+        'vid' => $node->vid,
+        'nid' => $node->nid,
+        'organization_nid' => $node->organization_nid,
+        'organization_title' => $node->organization_title,
+        'project_nid' => $node->project_nid,
+        'project_title' => (isset($node->project_title)) ? $node->project_title : NULL,
+        'task_nid' => $node->task_nid,
+        'task_title' => (isset($node->task_title)) ? $node->task_title : NULL,
+        'task_stepno' => (isset($node->task_stepno)) ? $node->task_stepno : NULL,
+        'ticket_nid' => $node->ticket_nid,
+        'ticket_title' => (isset($node->ticket_title)) ? $node->ticket_title : NULL,
+        'provider_nid' => (isset($node->provider_nid)) ? $node->provider_nid : NULL,
+        'provider_title' => $node->provider_title,
+        'amount' => $node->amount,
+        'tax1app' => $node->tax1app,
+        'tax1percent' => $node->tax1percent,
+        'tax1' => $node->tax1,
+        'subtotal' => $node->subtotal,
+        'tax2app' => $node->tax2app,
+        'tax2percent' => $node->tax2percent,
+        'tax2' => $node->tax2,
+        'total' => $node->total,
+      ))
+      ->condition('vid', $node->vid)
+      ->execute();
+  }
+}
+
+/**
+ * Prepare expense date before saving it to the database.
+ */
+function _pmexpense_beforesave(&$node) {
+  // Allow use of comma when inputting numerical values - str_replace with
+  // period decimal.
+  $node->amount = !empty($node->amount) ? $node->amount : 0;
+  $node->amount = str_replace(',', '.', $node->amount);
+  $node->tax1percent = str_replace(',', '.', $node->tax1percent);
+  $node->tax2percent = str_replace(',', '.', $node->tax2percent);
+
+  pm_taxation($node);
+
+  $org_query = db_select('node', 'n');
+  $org_query->join('pmorganization', 'pmor', 'n.vid = pmor.vid');
+  $org_result = $org_query
+    ->fields('n', array('title'))
+    ->condition('n.type', 'pmorganization')
+    ->condition('n.nid', $node->organization_nid)
+    ->execute();
+  $o = $org_result->fetchObject();
+  $node->organization_title = $o->title;
+
+  if (isset($node->project_nid)) {
+    $pro_query = db_select('node', 'n');
+    $pro_query->join('pmproject', 'pmpr', 'n.vid = pmpr.vid');
+    $pro_result = $pro_query
+      ->fields('n', array('title'))
+      ->condition('n.type', 'pmproject')
+      ->condition('n.nid', $node->project_nid)
+      ->execute();
+    $p = $pro_result->fetchObject();
+    $node->project_title = isset($p->title) ? $p->title : '';
+  }
+  else {
+    $node->project_title = '';
+  }
+
+  if (isset($node->task_nid)) {
+    $task_query = db_select('node', 'n');
+    $task_query->join('pmtask', 'pmta', 'n.vid = pmta.vid');
+    $task_result = $task_query
+      ->fields('n', array('title'))
+      ->fields('pmta', array('stepno'))
+      ->condition('n.type', 'pmtask')
+      ->condition('n.nid', $node->task_nid)
+      ->execute();
+    $ta = $task_result->fetchObject();
+    $node->task_title = isset($ta->title) ? $ta->title : '';
+    $node->task_stepno = isset($ta->stepno) ? $ta->stepno : '';
+  }
+  else {
+    $node->task_title = '';
+    $node->task_stepno = '';
+  }
+
+  if (isset($node->ticket_nid)) {
+    $ticket_query = db_select('node', 'n');
+    $ticket_query->join('pmticket', 'pmti', 'n.vid = pmti.vid');
+    $ticket_result = $ticket_query
+      ->fields('n', array('title'))
+      ->condition('n.type', 'pmticket')
+      ->condition('n.nid', $node->ticket_nid)
+      ->execute();
+    $ti = $ticket_result->fetchObject();
+    $node->ticket_title = isset($ti->title) ? $ti->title : '';
+  }
+  else {
+    $node->ticket_title = '';
+  }
+}
+
+/**
+ * Implements hook_node_revision_delete().
+ */
+function pmexpense_node_revision_delete($node) {
+  // Notice that we're matching a single revision based on the node's vid.
+  db_delete('pmexpense')
+    ->condition('vid', $node->vid)
+    ->execute();
+}
+
+/**
+ * Implements hook_delete().
+ */
+function pmexpense_delete($node) {
+  db_delete('pmexpense')
+    ->condition('nid', $node->nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_load().
+ */
+function pmexpense_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $result = db_select('pmexpense', 'pmex')
+      ->fields('pmex')
+      ->condition('vid', $node->vid)
+      ->execute();
+    $record = $result->fetchAssoc();
+
+    if (!empty($record)) {
+      foreach ($record as $key => $value) {
+        $node->$key = $value;
+      }
+    }
+
+    $node->title_old = $node->title;
+  }
+}
+
+/**
+ * Implements hook_view().
+ */
+function pmexpense_view($node, $view_mode) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Expenses'), 'pm/expenses');
+  drupal_set_breadcrumb($breadcrumb);
+
+  return theme('pmexpense_view', array('node' => $node, 'view_mode' => $view_mode));
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pmexpense_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'pmexpense'),
+  );
+}
+
+/**
+ * Implements hook_node_access_records().
+ */
+function pmexpense_node_access_records($node) {
+  if (empty($node->status)) {
+    // Lets Drupal take care of permission to unpublished nodes.
+    return array();
+  }
+  $type = is_string($node) ? $node : $node->type;
+  $grants = array();
+  if ($type == 'pmexpense') {
+    // Project Management expense: view all
+    $grants[] = array(
+      'realm' => 'pmexpense_view_all',
+      'gid' => 0,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management expense: view own
+    $grants[] = array(
+      'realm' => 'pmexpense_view_own',
+      'gid' => $node->uid,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management expense: view of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmexpense_view_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 1,
+        'grant_update' => 0,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management expense: edit all
+    $grants[] = array(
+      'realm' => 'pmexpense_update_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management expense: edit own
+    $grants[] = array(
+      'realm' => 'pmexpense_update_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management expense: edit of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmexpense_update_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 1,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+    // Project Management expense: delete all
+    $grants[] = array(
+      'realm' => 'pmexpense_delete_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management expense: delete own
+    $grants[] = array(
+      'realm' => 'pmexpense_delete_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management expense: delete of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmexpense_delete_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 0,
+        'grant_delete' => 1,
+        'priority' => 0,
+      );
+    }
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_node_grants().
+ */
+function pmexpense_node_grants($account, $op) {
+
+  if (module_exists('pmperson')) {
+    _pmperson_user_load($account);
+  }
+  $grants = array();
+  switch ($op) {
+    case 'view':
+      if (user_access('Project Management expense: view all', $account)) {
+        $grants['pmexpense_view_all'] = array(0);
+      }
+      if (user_access('Project Management expense: view own', $account)) {
+        $grants['pmexpense_view_own'] = array($account->uid);
+      }
+      if (user_access('Project Management expense: view of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pmexpense_view_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+
+    case 'update':
+      if (user_access('Project Management expense: edit all', $account)) {
+        $grants['pmexpense_update_all'] = array(0);
+      }
+      if (user_access('Project Management expense: edit own', $account)) {
+        $grants['pmexpense_update_own'] = array($account->uid);
+      }
+      if (user_access('Project Management expense: edit of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pmexpense_update_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+
+    case 'delete':
+      if (user_access('Project Management expense: delete all', $account)) {
+        $grants['pmexpense_delete_all'] = array(0);
+      }
+      if (user_access('Project Management expense: delete own', $account)) {
+        $grants['pmexpense_delete_own'] = array($account->uid);
+      }
+      if (user_access('Project Management expense: delete of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pmexpense_delete_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_pm_dashboard_links().
+ */
+function pmexpense_pm_dashboard_links($type) {
+  $links = array();
+  if ($type == 'page' || $type == 'block') {
+    $links[] = array(
+      'theme' => 'pm_dashboard_link',
+      'title' => t('Expenses'),
+      'icon' => 'pmexpenses',
+      'path' => 'pm/expenses',
+      'params' => array(),
+      'node_type' => 'pmexpense',
+      'add_type' => 'pmexpense',
+      'map' => array(),
+      'weight' => 11,
+    );
+  }
+  return $links;
+}

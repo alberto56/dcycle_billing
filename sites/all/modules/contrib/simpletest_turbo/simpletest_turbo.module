@@ -1,0 +1,84 @@
+<?php
+/**
+ * Fast simpletest.
+ */
+
+/**
+ * You must call this function before you run your tests.
+ *
+ * See https://drupal.org/node/2234495 and README.txt
+ */
+function simpletest_turbo_start() {
+  simpletest_turbo_end();
+}
+
+/**
+ * You should call this function after you run your tests.
+ *
+ * See https://drupal.org/node/2234495 and README.txt
+ */
+function simpletest_turbo_end() {
+  // remove all fasttest tables
+  $tables = db_find_tables('fasttest%');
+  foreach ($tables as $table) {
+    db_drop_table($table);
+  }
+  variable_set('simpletest_turbo', NULL);
+}
+
+/**
+ * Retrieves an ID for the cache.
+ *
+ * When more than one test class is called, static variables and the
+ * drupal cache, as well as session variables, are reset. Therefore
+ * I needed something more persistent. This is changed only when you
+ * call simpletest_turbo_start() before your test and/or simpletest_turbo_end()
+ * after.
+ */
+function simpletest_turbo_id($class) {
+  $id = variable_get('simpletest_turbo');
+  if (!is_array($id)) {
+    $id = array();
+  }
+  if (!isset($id[$class])) {
+    $id[$class] = rand(1000000, 9999999);
+  }
+  variable_set('simpletest_turbo', $id);
+  return $id[$class];
+}
+
+/**
+ * Resets the default connection and copies tables with a set prefix.
+ *
+ * Resets the default connection instead of the Simpletest connection, and
+ * copies all tables with the source prefix and renames them with the
+ * destination prefix.
+ *
+ * For example, if your source prefix is SOURCE, and you have two tables
+ * SOURCEfirst and SOURCEsecond, calling this function with the destination
+ * prefix set to DESTINATION will result in there being two new tables,
+ * DESTINATIONfirst and DESTINATIONsecond.
+ *
+ * This function is called from within the test class's setUp() function.
+ *
+ * @param $sourceprefix
+ *   The source prefix.
+ *
+ * @param $destinationprefix
+ *   The destination prefix.
+ */
+function simpletest_turbo_copy_tables($sourceprefix, $destinationprefix) {
+  Database::renameConnection('default', 'simpletest_swap');
+  Database::renameConnection('simpletest_original_default', 'default');
+  $tables = db_find_tables($sourceprefix . '%');
+  foreach ($tables as $table) {
+    $table = str_replace($sourceprefix, '', $table);
+    if (db_table_exists($destinationprefix . $table)) {
+      break;
+    }
+    db_query('CREATE TABLE ' . $destinationprefix . $table . ' LIKE ' . $sourceprefix . $table . ';');
+    db_query('INSERT INTO ' . $destinationprefix . $table . ' SELECT * FROM ' . $sourceprefix . $table);
+  }
+  Database::renameConnection('default', 'simpletest_original_default');
+  Database::renameConnection('simpletest_swap', 'default');
+}

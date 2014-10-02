@@ -1,0 +1,624 @@
+<?php
+
+/**
+ * @file
+ * Functionality for the Project Management Team module
+ * Organized into the following sections:
+ * - General hooks: (help), menu, perm, theme, views_api
+ * - Node specific hooks: node_info, field_extra_fields, access,
+ *     form, load, view, _beforesave, insert, update,
+ *     delete, nodeapi
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function pmteam_permission() {
+  return array(
+    'Project Management Team: access' => array(
+      'title' => t('Access PM Team'),
+      'description' => t('Allows the user to see pages and blocks associated with the PM Team module, but does not control which teams are shown within them.'),
+    ),
+    'Project Management Team: add' => array(
+      'title' => t('Add PM Team'),
+      'description' => t('Allows the user to create a team.'),
+    ),
+    'Project Management Team: view all' => array(
+      'title' => t('View Any PM Team'),
+      'description' => t('Allows the user to view any team and see any team in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Team: view own' => array(
+      'title' => t('View Authored PM Team'),
+      'description' => t('For teams authored by the user, allows the user to view the team and see the team in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Team: view belonged' => array(
+      'title' => t('View Belonged PM Team'),
+      'description' => t('Allows users assigned to a PM Person linked to a team to view that team and see that team in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Team: edit all' => array(
+      'title' => t('Edit Any PM Team'),
+      'description' => t('Allows the user to edit any team.'),
+    ),
+    'Project Management Team: edit own' => array(
+      'title' => t('Edit Authored PM Team'),
+      'description' => t('For teams authored by the user, allows the user to edit the team.'),
+    ),
+    'Project Management Team: edit belonged' => array(
+      'title' => t('Edit Belonged PM Team'),
+      'description' => t('Allows users assigned to a PM Person linked to an organization to edit that team.'),
+    ),
+    'Project Management Team: delete all' => array(
+      'title' => t('Edit Any PM Team'),
+      'description' => t('Allows the user to delete any team.'),
+    ),
+    'Project Management Team: delete own' => array(
+      'title' => t('Delete Authored PM Team'),
+      'description' => t('For teams authored by the user, allows the user to delete the team.'),
+    ),
+    'Project Management Team: delete belonged' => array(
+      'title' => t('Delete Belonged PM Team'),
+      'description' => t('Allows users assigned to a PM Person linked to an organization to delete that team.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pmteam_theme() {
+  return array(
+    'pmteam_view' => array(
+      'file'      => 'pmteam.theme.inc',
+      'variables' => array('node', 'view_mode'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pmteam_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'pmteam'),
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function pmteam_node_info() {
+  return array(
+    'pmteam' => array(
+      'name' => t('Team'),
+      'base' => 'pmteam',
+      'description' => t('A team for use within Project Management.'),
+      'title_label' => t('Team Name'),
+      'body_label' => t('Description'),
+    )
+  );
+}
+
+/**
+ * Implements hook_content_extra_fields().
+ */
+function pmteam_field_extra_fields() {
+  $extra['node']['pmteam'] = array(
+    'form' => array(
+      'group1' => array(
+        'label' => 'Team members',
+        'weight' => -20,
+      ),
+    ),
+  );
+  return $extra;
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function pmteam_field_extra_fields_alter(&$info) {
+  $info['node']['pmteam']['form']['title']['weight'] = -21;
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function pmteam_node_access($node, $op, $account = NULL) {
+  $type = is_string($node) ? $node : $node->type;
+  if ($type == 'pmteam') {
+    // If no account is specified, assume that the check is against the current logged in user
+    if (is_null($account)) {
+      global $user;
+      $account = $user;
+    }
+    if ($op == 'create' AND user_access('Project Management Team: add', $account)) {
+      return NODE_ACCESS_ALLOW;
+    }
+  }
+  return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Implements hook_form().
+ */
+function pmteam_form(&$node) {
+  $breadcrumb = array(
+    l(t('Project Management'), 'pm'),
+    l(t('Teams'), 'pm/teams'),
+  );
+  drupal_set_breadcrumb($breadcrumb);
+
+  $type = node_type_get_type($node);
+  $info = field_info_extra_fields('node', 'pmteam', 'form');
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => check_plain($type->title_label),
+    '#required' => TRUE,
+    '#default_value' => $node->title,
+    '#weight' => $info['title']['weight'],
+  );
+
+  $form['group1'] = array(
+    '#type' => 'markup',
+    '#weight' => $info['group1']['weight'],
+  );
+
+  $options = array(0 => '-');
+
+  $per_query = db_select('node', 'n');
+  $per_query->join('pmperson', 'spe', 'n.vid = spe.vid');
+  $per_result = $per_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.type', 'pmperson')
+    ->condition('n.status', 1)
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $people = array();
+  foreach ($per_result as $person) {
+    $people[$person->nid] = $person->title;
+  }
+
+  $options = $options + array(-1 => t('-PEOPLE-')) + $people;
+
+  $org_result = db_select('node', 'n')
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.type', 'pmorganization')
+    ->condition('n.status', 1)
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $organizations = array();
+  foreach ($org_result as $organization) {
+    $organizations[$organization->nid] = $organization->title;
+  }
+
+  $options = $options + array(-2 => t('-ORGANIZATIONS-')) + $organizations;
+
+  $i = 1;
+  $variable = 'members_array_' . $i;
+
+  // Add rows for existing team members
+  if (isset($node->members_array) && is_array($node->members_array)) {
+    foreach ($node->members_array as $node->$variable => $name) {
+      $form['group1'][$variable] = array(
+        '#type' => 'select',
+        '#title' => t('Team Member @num', array('@num' => $i)),
+        '#options' => $options,
+        '#default_value' => $node->$variable,
+      );
+      $i++;
+      $variable = 'members_array_' . $i;
+    }
+  }
+
+  // Add placeholder rows
+  for ($j = 0; $j < 3; $j++) {
+    $variable = 'members_array_' . $i;
+    $form['group1'][$variable] = array(
+      '#type' => 'select',
+      '#title' => t('Team Member @num', array('@num' => $i)),
+      '#options' => $options,
+      '#default_value' => (isset($node->$variable)) ? $node->$variable : NULL,
+    );
+    $i++;
+  }
+
+  $body = field_get_items('pmteam', $node, 'body');
+  if ($body) {
+    $form['body_field'] = $body;
+  }
+
+  $form['title_old'] = array(
+    '#type' => 'hidden',
+    '#default_value' => (isset($node->title_old)) ? $node->title_old : NULL,
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_load().
+ */
+function pmteam_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $team_query = db_select('node', 'n');
+    $team_query->join('pmteam', 'ste', 'n.nid = ste.mnid');
+    $team_result = $team_query
+      ->fields('n', array('title', 'status'))
+      ->fields('ste', array('mnid'))
+      ->condition('ste.vid', $node->vid)
+      ->execute();
+
+    $node->members_array = array();
+    $node->members_deactivated_array = array();
+    foreach ($team_result as $members) {
+      $node->members_array[$members->mnid] = $members->title;
+      if ($members->status == 0) {
+        $node->members_deactivated_array[$members->mnid] = $members->title;
+      }
+    }
+    $node->title_old = $node->title;
+  }
+}
+
+/**
+ * Implements hook_view().
+ */
+function pmteam_view($node, $view_mode) {
+  $breadcrumb = array(
+    l(t('Project Management'), 'pm'),
+    l(t('Teams'), 'pm/teams'),
+  );
+  drupal_set_breadcrumb($breadcrumb);
+
+  return theme('pmteam_view', array('node' => $node, 'view_mode' => $view_mode));
+}
+
+/**
+ * Function to be called internally before saving Project Management Team nodes
+ */
+function _pmteam_beforesave(&$node) {
+  $i = 1;
+  $variable = 'members_array_' . $i;
+
+  // unsetting the $node->members_array to handle deleting of members.
+  $node->members_array = array();
+
+  while (isset($node->$variable)) {
+    $per_result = db_select('node', 'n')
+      ->fields('n', array('title'))
+      ->condition('n.nid', $node->$variable)
+      ->execute();
+
+    $title = $per_result->fetchObject();
+    if (!empty($title)) {
+      $node->members_array[$node->$variable] = $title->title;
+    }
+    $i++;
+    $variable = 'members_array_' . $i;
+  }
+  if (isset($node->members_array)) {
+    if (array_key_exists(0, $node->members_array)) {
+      unset($node->members_array[0]);
+    }
+
+    $node->members = serialize($node->members_array);
+  }
+}
+
+/**
+ * Implements hook_insert().
+ */
+function pmteam_insert($node) {
+  _pmteam_beforesave($node);
+  if (isset($node->vid) && (isset($node->nid)) && (isset($node->members_array))) {
+    $member = new stdClass();
+    $member->nid = $node->nid;
+    $member->vid = $node->vid;
+    foreach ($node->members_array as $mnid => $member_name) {
+      $member->mnid = $mnid;
+      drupal_write_record('pmteam', $member);
+    }
+  }
+}
+
+/**
+ * Implements hook_update().
+ */
+function pmteam_update($node) {
+  _pmteam_beforesave($node);
+
+  if ($node->revision) {
+    pmteam_insert($node);
+  }
+  else {
+
+    if (isset($node->vid) && (isset($node->nid)) && (isset($node->members_array))) {
+      // Delete the old members
+      db_delete('pmteam')
+        ->condition('vid', $node->vid)
+        ->execute();
+
+      // Insert entries
+      $member = new stdClass();
+      $member->nid = $node->nid;
+      $member->vid = $node->vid;
+      foreach ($node->members_array as $mnid => $member_name) {
+        $member->mnid = $mnid;
+        drupal_write_record('pmteam', $member);
+      }
+    }
+
+    // Invokes hook_pmteam_change so that if title has changed, other modules that have cached the title can update it.
+    if ($node->title != $node->title_old) {
+      module_invoke_all('pmteam_change', $node->nid, $node->title);
+    }
+  }
+}
+
+/**
+ * Implements hook_delete().
+ */
+function pmteam_delete($node) {
+  // Notice that we're matching all revision, by using the node's nid.
+  db_delete('pmteam')
+    ->condition('nid', $node->nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_nodeapi().
+ */
+function pmteam_node_revision_delete($node) {
+  // Notice that we're matching a single revision based on the node's vid.
+  db_delete('pmorganization')
+    ->condition('vid', $node->vid)
+    ->execute();
+}
+
+/**
+ * Function to return an autocomplete list for Project Management Teams
+ */
+function pmteam_autocomplete($string = '') {
+  $matches = array();
+  if ($string) {
+    // @todo Convert to DBTNG
+    $s = "SELECT title FROM {node} AS n WHERE n.type='pmteam' AND LOWER(title) LIKE LOWER('%%%s%%')";
+    // ->addTag('node_access')
+
+    $result = db_query_range($s, $string, 0, 10);
+    while ($team = db_fetch_object($result)) {
+      $matches[$team->title] = check_plain($team->title);
+    }
+  }
+
+  drupal_json($matches);
+}
+
+/**
+ * Function to return an autocomplete list for PM Teams and People
+ */
+function pmteam_autocomplete_combo($string = '') {
+  $matches = array();
+  if ($string) {
+    // @todo Convert to DBTNG
+    $s = "SELECT title FROM {node} AS n WHERE n.type='pmteam' AND LOWER(title) LIKE LOWER('%s%%')";
+    // ->addTag('node_access')
+
+    $result = db_query_range($s, $string, 0, 10);
+    while ($obj = db_fetch_object($result)) {
+      $matches[$obj->title] = check_plain($obj->title);
+    }
+  }
+
+  drupal_json($matches);
+}
+
+/**
+ * Returns whether user is in a PM Team based on team $node and user $account
+ */
+function pmteam_user_belongs_to_team($team, $person_or_organization_nid) {
+  $node = node_load($team);
+
+  // Check for person_or_organization_nid in the team members array and return TRUE / FALSE
+  if (is_array($node->members_array)) {
+    return array_key_exists($person_or_organization_nid, $node->members_array);
+  }
+  else {
+    return FALSE;
+  }
+}
+
+/**
+ * Function to return the teams that a user is a member of
+ */
+function pmteam_user_return_teams($account = NULL) {
+  if (empty($account)) {
+    global $user;
+    $account = $user;
+  }
+
+  // Get the list of team nodes. Include organizations which the person is a member of.
+  $s = "SELECT ste.nid FROM {pmteam} ste JOIN {pmperson} stp ON (stp.nid = ste.mnid OR stp.organization_nid = ste.mnid) WHERE stp.user_uid = %d";
+  $r = db_query($s, $account->uid);
+  $teams = array();
+  while ($team = db_fetch_object($r)) {
+    $teams[] = $team->nid;
+  }
+
+  return $teams;
+}
+
+/**
+ * Implements hook_node_access_records().
+ */
+function pmteam_node_access_records($node) {
+  if (empty($node->status)) {
+    // Lets Drupal take care of permission to unpublished nodes.
+    return array();
+  }
+  $type = is_string($node) ? $node : $node->type;
+  $grants = array();
+  if ($type == 'pmteam') {
+    // Project Management Team: view all
+    $grants[] = array(
+      'realm' => 'pmteam_view_all',
+      'gid' => 0,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Team: view own
+    $grants[] = array(
+      'realm' => 'pmteam_view_own',
+      'gid' => $node->uid,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Team: view belonged
+    $grants[] = array(
+      'realm' => 'pmteam_view_if_belonged',
+      'gid' => $node->nid,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Team: edit all
+    $grants[] = array(
+      'realm' => 'pmteam_update_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Team: edit own
+    $grants[] = array(
+      'realm' => 'pmteam_update_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Team: edit belonged
+    $grants[] = array(
+      'realm' => 'pmteam_update_if_belonged',
+      'gid' => $node->nid,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Team: delete all
+    $grants[] = array(
+      'realm' => 'pmteam_delete_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management Team: delete own
+    $grants[] = array(
+      'realm' => 'pmteam_delete_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management Team: delete belonged
+    $grants[] = array(
+      'realm' => 'pmteam_delete_if_belonged',
+      'gid' => $node->nid,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_node_grants().
+ */
+function pmteam_node_grants($account, $op) {
+  $assigned_nids = array();
+  if (module_exists('pmperson')) {
+    _pmperson_user_load($account);
+    if (!empty($account->pmteam) AND is_array($account->pmteam)) {
+      $assigned_nids = $account->pmteam;
+    }
+  }
+  $grants = array();
+  switch ($op) {
+    case 'view':
+      if (user_access('Project Management Team: view all', $account)) {
+        $grants['pmteam_view_all'] = array(0);
+      }
+      if (user_access('Project Management Team: view own', $account)) {
+        $grants['pmteam_view_own'] = array($account->uid);
+      }
+      if (!empty($assigned_nids) AND user_access('Project Management Team: view belonged', $account)) {
+        $grants['pmteam_view_if_belonged'] = $assigned_nids;
+      }
+      break;
+
+    case 'update':
+      if (user_access('Project Management Team: edit all', $account)) {
+        $grants['pmteam_update_all'] = array(0);
+      }
+      if (user_access('Project Management Team: edit own', $account)) {
+        $grants['pmteam_update_own'] = array($account->uid);
+      }
+      if (!empty($assigned_nids) AND user_access('Project Management Team: edit belonged', $account)) {
+        $grants['pmteam_update_if_belonged'] = $assigned_nids;
+      }
+      break;
+
+    case 'delete':
+      if (user_access('Project Management Team: delete all', $account)) {
+        $grants['pmteam_delete_all'] = array(0);
+      }
+      if (user_access('Project Management Team: delete own', $account)) {
+        $grants['pmteam_delete_own'] = array($account->uid);
+      }
+      if (!empty($assigned_nids) AND user_access('Project Management Team: delete belonged', $account)) {
+        $grants['pmteam_delete_if_belonged'] = $assigned_nids;
+      }
+      break;
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_pm_dashboard_links().
+ */
+function pmteam_pm_dashboard_links($type) {
+  $links = array();
+  if ($type == 'page' || $type == 'block') {
+    $links[] = array(
+      'theme' => 'pm_dashboard_link',
+      'title' => t('Teams'),
+      'icon' => 'pmteams',
+      'path' => 'pm/teams',
+      'params' => array(),
+      'node_type' => 'pmteam',
+      'add_type' => 'pmteam',
+      'map' => array(),
+      'weight' => 3,
+    );
+  }
+  return $links;
+}

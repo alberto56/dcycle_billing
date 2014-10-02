@@ -1,0 +1,22 @@
+name = manage deploy
+core = 7.x
+
+dependencies[] = features
+dependencies[] = views
+dependencies[] = context
+dependencies[] = strongarm
+dependencies[] = admin_menu_toolbar
+dependencies[] = markdown
+dependencies[] = transliteration
+dependencies[] = globalredirect
+dependencies[] = redirect
+dependencies[] = config_builder
+dependencies[] = logintoboggan
+dependencies[] = commerce_order_ui
+dependencies[] = commerce_line_item_ui
+dependencies[] = commerce_product_ui
+dependencies[] = commerce_product_pricing_ui
+dependencies[] = commerce_payment_ui
+dependencies[] = commerce_cheque
+dependencies[] = inline_entity_form
+disabled[] = toolbar

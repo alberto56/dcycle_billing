@@ -1,0 +1,422 @@
+<?php
+/**
+ * @file
+ * Installation functions for PM Invoice.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function pminvoice_install() {
+  variable_set('node_options_pminvoice', array('status'));
+  variable_set('node_options_pminvoiceitem', array('status'));
+  variable_set('node_permissions_pminvoice', 0);
+  variable_set('comment_pminvoice', 1);
+
+  // Request date field.
+  field_create_field(array(
+    'type' => 'datetime',
+    'field_name' => 'pminvoice_requestdate',
+    'settings' => array(
+      'granularity' => array(
+        'year' => 'year',
+        'month' => 'month',
+        'day' => 'day',
+        'hour' => 0,
+        'minute' => 0,
+        'second' => 0,
+      ),
+      'tz_handling' => '',
+      'timezone_db' => '',
+      'todate' => '',
+    ),
+    'cardinality' => '1',
+  ));
+
+  field_create_instance(array(
+    'field_name' => 'pminvoice_requestdate',
+    'bundle' => 'pminvoice',
+    'label' => 'Request Date',
+    'required' => 1,
+    'entity_type' => 'node',
+    'widget' => array(
+      'weight' => '-17',
+      'type' => 'date_text',
+      'active' => 1,
+    ),
+    'settings' => array(
+      'default_value' => 'now',
+    ),
+  ));
+
+  // Due date field.
+  field_create_field(array(
+    'type' => 'datetime',
+    'field_name' => 'pminvoice_duedate',
+    'settings' => array(
+      'granularity' => array(
+        'year' => 'year',
+        'month' => 'month',
+        'day' => 'day',
+        'hour' => 0,
+        'minute' => 0,
+        'second' => 0,
+      ),
+      'tz_handling' => '',
+      'timezone_db' => '',
+      'todate' => '',
+    ),
+    'cardinality' => '1',
+  ));
+
+  field_create_instance(array(
+    'field_name' => 'pminvoice_duedate',
+    'bundle' => 'pminvoice',
+    'label' => 'Due Date',
+    'required' => 1,
+    'entity_type' => 'node',
+    'widget' => array(
+      'weight' => '-16',
+      'type' => 'date_text',
+      'active' => 1,
+    ),
+    'settings' => array(
+      'default_value' => 'strtotime',
+      'default_value_code' => '+28 days',
+    ),
+  ));
+
+  // Payment date field.
+  field_create_field(array(
+    'type' => 'datetime',
+    'field_name' => 'pminvoice_paymentdate',
+    'settings' => array(
+      'granularity' => array(
+        'year' => 'year',
+        'month' => 'month',
+        'day' => 'day',
+        'hour' => 0,
+        'minute' => 0,
+        'second' => 0,
+      ),
+      'tz_handling' => '',
+      'timezone_db' => '',
+      'todate' => '',
+    ),
+    'cardinality' => '1',
+  ));
+
+  field_create_instance(array(
+    'field_name' => 'pminvoice_paymentdate',
+    'bundle' => 'pminvoice',
+    'label' => 'Payment Date',
+    'required' => 0,
+    'entity_type' => 'node',
+    'widget' => array(
+      'weight' => '-15',
+      'type' => 'date_text',
+      'active' => 1,
+    ),
+    'settings' => array(
+      'default_value' => 'blank',
+    ),
+  ));
+}
+
+/**
+ * Implements hook_enable().
+ */
+function pminvoice_enable() {
+  node_access_needs_rebuild(TRUE);
+}
+
+/**
+ * Implements hook_disable().
+ */
+function pminvoice_disable() {
+  node_access_needs_rebuild(TRUE);
+  drupal_set_message(t('Nodes of type "Invoice" have not been deleted on disabling Project Management Invoice. Please note that they will now have reduced functionality, and will not be protected by Project Management Invoice access controls.'), 'warning');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function pminvoice_uninstall() {
+  drupal_uninstall_schema('pminvoice');
+}
+
+/**
+ * Implements hook_schema().
+ */
+function pminvoice_schema() {
+  $schema['pminvoice'] = array(
+    'fields'                => array(
+      'vid'                 => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid'                 => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'number'              => array('type' => 'varchar', 'length' => 50),
+      'reference'           => array('type' => 'varchar', 'length' => 150),
+      'organization_nid'    => array('type' => 'int'),
+      'organization_title'  => array('type' => 'varchar', 'length' => 128),
+      'project_nid'         => array('type' => 'int'),
+      'project_title'       => array('type' => 'varchar', 'length' => 128),
+      'amount'              => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'tax1'                => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'tax2'                => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'total'               => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'totalcustomercurr'   => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'taxexempt'           => array('type' => 'int', 'size' => 'tiny'),
+      'src_nid'             => array('type' => 'int'),
+      'src_vid'             => array('type' => 'int'),
+    ),
+    'primary key' => array('vid'),
+    'indexes'     => array(
+      'nid'               => array('nid'),
+      'organization_nid'  => array('organization_nid'),
+      'project_nid'       => array('project_nid'),
+    ),
+  );
+
+  $schema['pminvoice_items'] = array(
+    'fields'                => array(
+      'invoice_nid'         => array('type' => 'int'),
+      'invoice_vid'         => array('type' => 'int'),
+      'weight'              => array('type' => 'int'),
+      'description'         => array('type' => 'varchar', 'length' => 128),
+      'amount'              => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'tax1app'             => array('type' => 'int'),
+      'tax1percent'         => array('type' => 'float'),
+      'tax1'                => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'tax2app'             => array('type' => 'int'),
+      'tax2percent'         => array('type' => 'float'),
+      'tax2'                => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'total'               => array('type' => 'numeric', 'precision' => 19, 'scale' => 4),
+      'src_nid'             => array('type' => 'int'),
+      'src_vid'             => array('type' => 'int'),
+    ),
+    'indexes'     => array(
+      'invoice_nid'  => array('invoice_nid'),
+      'invoice_vid'  => array('invoice_vid'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function pminvoice_update_last_removed() {
+  return 6201;
+}
+
+/**
+ * Allow Project Management to override the default content type permissions
+ */
+function pminvoice_update_7100() {
+  variable_set('node_permissions_pminvoice', 0);
+  return 'PM Invoice permissions overridden';
+}
+
+/**
+ * Display message to admin regarding need to rebuild permission.
+ */
+function pminvoice_update_7101() {
+  node_access_needs_rebuild(TRUE);
+}
+
+/**
+ * Change price field types to fixed precision database columns.
+ */
+function pminvoice_update_7102() {
+  // Table: pminvoice.
+  db_change_field('pminvoice', 'amount', 'amount', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice', 'tax1', 'tax1', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice', 'tax2', 'tax2', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice', 'total', 'total', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice', 'totalcustomercurr', 'totalcustomercurr', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+ // Table: pminvoice_items.
+  db_change_field('pminvoice_items', 'amount', 'amount', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice_items', 'tax1', 'tax1', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice_items', 'tax2', 'tax2', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+
+  db_change_field('pminvoice_items', 'total', 'total', array(
+    'type' => 'numeric',
+    'precision' => 19,
+    'scale' => 4,
+  ));
+}
+
+/**
+ * Convert request date, due date and payment date to Field API.
+ */
+function pminvoice_update_7103() {
+  // Request date field.
+  field_create_field(array(
+    'type' => 'datetime',
+    'field_name' => 'pminvoice_requestdate',
+    'settings' => array(
+      'granularity' => array(
+        'year' => 'year',
+        'month' => 'month',
+        'day' => 'day',
+        'hour' => 0,
+        'minute' => 0,
+        'second' => 0,
+      ),
+      'tz_handling' => '',
+      'timezone_db' => '',
+      'todate' => '',
+    ),
+    'cardinality' => '1',
+  ));
+
+  field_create_instance(array(
+    'field_name' => 'pminvoice_requestdate',
+    'bundle' => 'pminvoice',
+    'label' => 'Request Date',
+    'required' => 1,
+    'entity_type' => 'node',
+    'widget' => array(
+      'weight' => '-17',
+      'type' => 'date_text',
+      'active' => 1,
+    ),
+    'settings' => array(
+      'default_value' => 'now',
+    ),
+  ));
+
+  // Due date field.
+  field_create_field(array(
+    'type' => 'datetime',
+    'field_name' => 'pminvoice_duedate',
+    'settings' => array(
+      'granularity' => array(
+        'year' => 'year',
+        'month' => 'month',
+        'day' => 'day',
+        'hour' => 0,
+        'minute' => 0,
+        'second' => 0,
+      ),
+      'tz_handling' => '',
+      'timezone_db' => '',
+      'todate' => '',
+    ),
+    'cardinality' => '1',
+  ));
+
+  field_create_instance(array(
+    'field_name' => 'pminvoice_duedate',
+    'bundle' => 'pminvoice',
+    'label' => 'Due Date',
+    'required' => 1,
+    'entity_type' => 'node',
+    'widget' => array(
+      'weight' => '-16',
+      'type' => 'date_text',
+      'active' => 1,
+    ),
+    'settings' => array(
+      'default_value' => 'strtotime',
+      'default_value_code' => '+30 days',
+    ),
+  ));
+
+  // Payment date field.
+  field_create_field(array(
+    'type' => 'datetime',
+    'field_name' => 'pminvoice_paymentdate',
+    'settings' => array(
+      'granularity' => array(
+        'year' => 'year',
+        'month' => 'month',
+        'day' => 'day',
+        'hour' => 0,
+        'minute' => 0,
+        'second' => 0,
+      ),
+      'tz_handling' => '',
+      'timezone_db' => '',
+      'todate' => '',
+    ),
+    'cardinality' => '1',
+  ));
+
+  field_create_instance(array(
+    'field_name' => 'pminvoice_paymentdate',
+    'bundle' => 'pminvoice',
+    'label' => 'Payment Date',
+    'required' => 0,
+    'entity_type' => 'node',
+    'widget' => array(
+      'weight' => '-15',
+      'type' => 'date_text',
+      'active' => 1,
+    ),
+    'settings' => array(
+      'default_value' => 'blank',
+    ),
+  ));
+
+  // Migrate data
+  $query = db_select('pminvoice', 'pmin');
+  $query->join('node', 'n', 'n.vid = pmin.vid');
+  $result = $query
+    ->fields('pmin', array('nid', 'vid', 'requestdate', 'duedate', 'paymentdate'))
+    ->execute();
+
+  foreach ($result as $record) {
+    $node = node_load($record->nid);
+
+    $node->pminvoice_requestdate[LANGUAGE_NONE][0]['value'] = date('Y-m-d H:i:s', $record->requestdate);
+    $node->pminvoice_duedate[LANGUAGE_NONE][0]['value'] = date('Y-m-d H:i:s', $record->duedate);
+    $node->pminvoice_paymentdate[LANGUAGE_NONE][0]['value'] = date('Y-m-d H:i:s', $record->paymentdate);
+    field_attach_presave('node', $node);
+    field_attach_update('node', $node);
+  }
+
+  // Delete columns from existing database table.
+  db_drop_field('pminvoice', 'requestdate');
+  db_drop_field('pminvoice', 'duedate');
+  db_drop_field('pminvoice', 'paymentdate');
+}

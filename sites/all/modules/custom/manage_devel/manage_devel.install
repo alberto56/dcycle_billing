@@ -1,0 +1,37 @@
+<?php
+
+/**
+ * Implements hook_install().
+ * See http://dcycleproject.org/blog/43/run-all-update-hooks-install-hook
+ */
+function manage_devel_install() {
+  manage_devel_update_dependencies();
+  for ($i = 7001; $i < 8000; $i++) {
+    $candidate = 'manage_devel_update_' . $i;
+    if (function_exists($candidate)) {
+      $candidate();
+    }
+  }
+}
+
+/**
+ * Reenable all dependencies
+ */
+function manage_devel_update_dependencies() {
+  static $called = FALSE;
+  if (!$called) {
+    $info_file = drupal_parse_info_file(drupal_get_path('module', 'manage_devel') . '/manage_devel.info');
+    if (isset($info_file['dependencies'])) {
+      module_enable($info_file['dependencies']);
+    }
+    $called = TRUE;
+  }
+}
+
+/**
+ * Revert features and update dependencies
+ */
+function manage_devel_update_7001() {
+  features_revert();
+  manage_devel_update_dependencies();
+}

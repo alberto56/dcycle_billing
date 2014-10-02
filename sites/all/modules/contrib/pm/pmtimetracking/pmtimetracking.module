@@ -1,0 +1,813 @@
+<?php
+/**
+ * @file
+ * Main module functions for PM Timetracking.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function pmtimetracking_help($path, $arg) {
+  $o = '';
+
+  switch ($path) {
+    case "admin/help#pmtimetracking":
+      $o = '<p>' . t("Provides timetracking support for Project Management") . '</p>';
+      break;
+  }
+
+  return $o;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pmtimetracking_permission() {
+  return array(
+    'Project Management Timetracking: access' => array(
+      'title' => t('Access PM Timetracking'),
+      'description' => t('Allows the user to see pages and blocks associated with the PM Timetracking module, but does not control which timetrackings are shown within them.'),
+    ),
+    'Project Management Timetracking: add' => array(
+      'title' => t('Add PM Timetracking'),
+      'description' => t('Allows the user to create a timetracking.'),
+    ),
+    'Project Management Timetracking: delete all' => array(
+      'title' => t('Delete Any PM Timetracking'),
+      'description' => t('Allows the user to delete any timetracking.'),
+    ),
+    'Project Management Timetracking: delete own' => array(
+      'title' => t('Delete Authored PM Timetrackings'),
+      'description' => t('For timetrackings authored by the user, allows the user to delete the timetracking.'),
+    ),
+    'Project Management Timetracking: delete of user organization' => array(
+      'title' => t('Delete PM Timetrackings in own Organization'),
+      'description' => t('For timetrackings assigned to the same PM Organization as a PM Person, allows the user associated with that Person to delete the timetracking.'),
+    ),
+    'Project Management Timetracking: edit all' => array(
+      'title' => t('Edit Any PM Timetracking'),
+      'description' => t('Allows the user to edit any timetracking.'),
+    ),
+    'Project Management Timetracking: edit own' => array(
+      'title' => t('Edit Authored PM Timetracking'),
+      'description' => t('For timetrackings authored by the user, allows the user to edit the timetracking.'),
+    ),
+    'Project Management Timetracking: edit of user organization' => array(
+      'title' => t('Edit PM Timetrackings in own Organization'),
+      'description' => t('For timetrackings assigned to the same PM Organization as a PM Person, allows the user associated with that Person to edit the timetracking.'),
+    ),
+    'Project Management Timetracking: view all' => array(
+      'title' => t('View Any PM Timetracking'),
+      'description' => t('Allows the user to view any timetracking and see any timetracking in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Timetracking: view own' => array(
+      'title' => t('View Authored PM Timetrackings'),
+      'description' => t('For timetrackings authored by the user, allows the user to view the timetracking and see the timetracking in lists or dropdowns elsewhere on the site.'),
+    ),
+    'Project Management Timetracking: view of user organization' => array(
+      'title' => t('View PM Timetrackings in own Organization'),
+      'description' => t('For timetrackings assigned to the same PM Organization as a PM Person, allows the user associated with that Person to view the timetracking and see the timetracking in lists or dropdowns elsewhere on the site.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function pmtimetracking_node_access($node, $op, $account = NULL) {
+  $type = is_string($node) ? $node : $node->type;
+  if ($type == 'pmtimetracking') {
+    // If no account is specified, assume that the check is against the current logged in user
+    if (is_null($account)) {
+      global $user;
+      $account = $user;
+    }
+    if ($op == 'create' AND user_access('Project Management Timetracking: add', $account)) {
+      return NODE_ACCESS_ALLOW;
+    }
+  }
+  return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function pmtimetracking_menu() {
+  $items = array();
+
+  $items['admin/config/pm/timetracking'] = array(
+    'title' => 'Timetrackings',
+    'description' => 'Configure billing settings for PM Timetracking.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pmtimetracking_admin_settings'),
+    'access arguments' => array('Project Management: access administration pages'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pmtimetracking_theme() {
+  return array(
+    'pmtimetracking_view' => array(
+      'file'      => 'pmtimetracking.theme.inc',
+      'variables' => array('node', 'view_mode'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function pmtimetracking_node_info() {
+  return array(
+    'pmtimetracking' => array(
+      'name' => t('Timetracking'),
+      'base' => 'pmtimetracking',
+      'description' => t("A timetracking for Project Management."),
+      'title_label' => t("Title"),
+    )
+  );
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function pmtimetracking_field_extra_fields() {
+  $extra['node']['pmtimetracking'] = array(
+    'form' => array(
+      'group1' => array(
+        'label' => 'Organization/Project/Task/Ticket Group',
+        'weight' => -20,
+      ),
+      'group3' => array(
+        'label' => 'Duration Group',
+        'weight' => -18,
+      ),
+    ),
+  );
+  return $extra;
+}
+
+/**
+ * Implements hook_field_extra_fields_alter().
+ */
+function pmtimetracking_field_extra_fields_alter(&$info) {
+  $info['node']['pmtimetracking']['form']['title']['weight'] = -21;
+}
+
+/**
+ * Implements hook_pmorganization_change().
+ */
+function pmtimetracking_pmorganization_change($organization_nid, $organization_title) {
+
+  $num_updated = db_update('pmtimetracking')
+    ->fields(array(
+      'organization_title' => $organization_title,
+    ))
+    ->condition('organization_nid', $organization_nid, '=')
+    ->condition('organization_title', $organization_title, '<>')
+    ->execute();
+  if ($num_update) {
+    watchdog('PM Timetracking:', "$num_updated number of entries updated silently.");
+  }
+}
+
+/**
+ * Implements hook_pmproject_change().
+ */
+function pmtimetracking_pmproject_change($project_nid, $project_title) {
+
+  $num_updated = db_update('pmtimetracking')
+    ->fields(array(
+      'project_title' => $project_title,
+    ))
+    ->condition('project_nid', $project_nid, '=')
+    ->condition('project_title', $project_title, '<>')
+    ->execute();
+  if ($num_update) {
+    watchdog('PM Timetracking:', "$num_updated number of entries updated silently.");
+  }
+}
+
+/**
+ * Implements hook_pmtask_change().
+ */
+function pmtimetracking_pmtask_change($task_nid, $task_title, $task_stepno) {
+
+  $num_updated = db_update('pmtimetracking')
+    ->fields(array(
+      'task_title' => $task_title,
+      'task_stepno' => $task_stepno,
+    ))
+    ->condition('task_nid', $project_nid, '=')
+    ->condition(db_or()->condition('task_title', $task_title, '<>')->condition('task_stepno', $task_stepno, '<>'))
+    ->execute();
+  if ($num_update) {
+    watchdog('PM Timetracking:', "$num_updated number of entries updated silently.");
+  }
+}
+
+/**
+ * Implements hook_pmticket_change().
+ */
+function pmtimetracking_pmticket_change($ticket_nid, $ticket_title) {
+  $num_updated = db_update('pmtimetracking')
+    ->fields(array(
+      'ticket_title' => $ticket_title,
+    ))
+    ->condition('ticket_nid', $ticket_nid, '=')
+    ->condition('ticket_title', $ticket_title, '<>')
+    ->execute();
+  if ($num_update) {
+    watchdog('PM Timetracking:', "$num_updated number of entries updated silently.");
+  }
+}
+
+/**
+ * Implements hook_pmproject_change_hierarchy().
+ */
+function pmtimetracking_pmproject_change_hierarchy($project_nid, $organization_nid, $organization_title) {
+  $query = db_update('pmtimetracking')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+    ))
+    ->condition('project_nid', $project_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmtask_change_hierarchy().
+ */
+function pmtimetracking_pmtask_change_hierarchy($task_nid, $organization_nid, $organization_title, $project_nid, $project_title) {
+  $query = db_update('pmtimetracking')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+      'project_nid' => $project_nid,
+      'project_title' => $project_title,
+    ))
+    ->condition('task_nid', $task_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_pmticket_change_hierarchy().
+ */
+function pmtimetracking_pmticket_change_hierarchy($ticket_nid, $organization_nid, $organization_title, $project_nid, $project_title, $task_nid, $task_title) {
+  $query = db_update('pmtimetracking')
+    ->fields(array(
+      'organization_nid' => $organization_nid,
+      'organization_title' => $organization_title,
+      'project_nid' => $project_nid,
+      'project_title' => $project_title,
+      'task_nid' => $task_nid,
+      'task_title' => $task_title,
+    ))
+    ->condition('ticket_nid', $ticket_nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_form().
+ */
+function pmtimetracking_form(&$node, $form_state) {
+  $breadcrumb = array();
+  $breadcrumb[] = l(t('Project Management'), 'pm');
+  $breadcrumb[] = l(t('Timetrackings'), 'pm/timetrackings');
+  drupal_set_breadcrumb($breadcrumb);
+
+  $type = node_type_get_type($node);
+  $info = field_info_extra_fields('node', 'pmtimetracking', 'form');
+
+  $form['#attributes']['class'] = 'pmcomponent_node_form';
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => check_plain($type->title_label),
+    '#required' => TRUE,
+    '#default_value' => $node->title,
+    '#weight' => $info['title']['weight'],
+  );
+
+  $form['group1'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group1']['weight'],
+  );
+
+  $org_id = isset($node->organization_nid) ? $node->organization_nid : -1;
+  $query = db_select('pmorganization', 'pmorg');
+  $query->innerJoin('node', 'n' , 'pmorg.vid=n.vid');
+  $records = $query->fields('pmorg', array('nid', 'isactive'))
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.status', '1')
+    ->condition(db_or()->condition('pmorg.isactive', '1')->condition('n.nid', $org_id))
+    ->condition('n.type', 'pmorganization')
+    ->orderBy('title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+  $organizations = array();
+  foreach ($records as $organization) {
+    $organizations[$organization->nid] = $organization->title;
+    if (!isset($node->organization_nid)) $node->organization_nid = $organization->nid;
+  }
+
+  $organization_nid = isset($form_state['values']['organization_nid']) ? $form_state['values']['organization_nid'] : (isset($node->organization_nid) ? $node->organization_nid : -1);
+
+  $form['group1']['organization_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Organization'),
+    '#default_value' => $organization_nid,
+    '#options' => $organizations,
+    '#required' => TRUE,
+    '#ajax' => array(
+      'callback' => 'pmtimetracking_ajax_organization_nid',
+      'wrapper' => 'pmtimetracking-project-nid',
+    ),
+  );
+
+  if ($organization_nid == -1) {
+    drupal_set_message(t('Please add an organization to the system before trying to add a timetracking.'), 'error');
+  }
+
+  $pro_query = db_select('node', 'n');
+  $pro_query->join('pmproject', 'pmpr', 'n.vid = pmpr.vid');
+  $pro_result = $pro_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('n.status', 1)
+    ->condition('pmpr.organization_nid', $organization_nid)
+    ->condition('n.type', 'pmproject')
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $projects = array();
+  foreach ($pro_result as $project) {
+    $projects[$project->nid] = $project->title;
+  }
+  $form['group1']['project_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Project'),
+    '#default_value' => isset($node->project_nid) ? $node->project_nid : 0,
+    '#options' => array(0 => '-') + $projects,
+    '#prefix' => '<div id="pmtimetracking-project-nid">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => 'pmtimetracking_ajax_project_nid',
+      'wrapper' => 'pmtimetracking-task-nid',
+    ),
+  );
+
+  $project_nid = isset($form_state['values']['project_nid']) ? $form_state['values']['project_nid'] : (isset($node->project_nid) ? $node->project_nid : 0);
+
+  $tree = isset($project_nid) ? _pmtask_get_tree($project_nid) : array();
+  $tasks = _pmtask_plain_tree($tree);
+  $form['group1']['task_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Task'),
+    '#default_value' => isset($node->task_nid) ? $node->task_nid : 0,
+    '#options' => array(0 => '-') + $tasks,
+    '#prefix' => '<div id="pmtimetracking-task-nid">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => 'pmtimetracking_ajax_task_nid',
+      'wrapper' => 'pmtimetracking-ticket-nid',
+    ),
+  );
+
+  $task_nid = isset($form_state['values']['task_nid']) ? $form_state['values']['task_nid'] : (isset($node->task_nid) ? $node->task_nid : 0);
+
+  $ti_query = db_select('node', 'n');
+  $ti_query->join('pmticket', 'pmti', 'n.vid = pmti.vid');
+  $ti_result = $ti_query
+    ->fields('n', array('nid', 'title'))
+    ->condition('pmti.task_nid', $task_nid)
+    ->condition('n.status', 1)
+    ->condition('n.type', 'pmticket')
+    ->orderBy('n.title', 'ASC')
+    ->addTag('node_access')
+    ->execute();
+
+  $tickets = array();
+  foreach ($ti_result as $ticket) {
+    $tickets[$ticket->nid] = $ticket->title;
+  }
+
+  $form['group1']['ticket_nid'] = array(
+    '#type' => 'select',
+    '#title' => t('Ticket'),
+    '#default_value' => isset($node->ticket_nid) ? $node->ticket_nid : 0,
+    '#options' => array(0 => '-') + $tickets,
+    '#prefix' => '<div id="pmtimetracking-ticket-nid">',
+    '#suffix' => '</div>',
+  );
+
+  $form['group3'] = array(
+    '#type' => 'markup',
+    '#theme' => 'pm_form_group',
+    '#weight' => $info['group3']['weight'],
+  );
+
+  $duration = isset($node->duration) ? sprintf("%01.2f", $node->duration) : sprintf("%01.2f", 0);
+  $form['group3']['duration'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Duration (h)'),
+    '#default_value' => $duration,
+    '#size' => 10,
+    '#maxlength' => 5,
+    '#weight' => 3,
+    '#disabled' => TRUE,
+  );
+
+  $form['group3']['billing_duration'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Billing duration (h)'),
+    '#default_value' => sprintf("%01.2f", isset($node->billing_duration) ? $node->billing_duration : 0),
+    '#size' => 10,
+    '#maxlength' => 5,
+    '#weight' => 4,
+  );
+
+  // Check to see if the body field is still there, if so, display it.
+  $body = field_get_items('pmtimetracking', $node, 'body');
+  if ($body) {
+    $form['body_field'] = $body;
+  }
+
+  return $form;
+}
+
+/**
+ * Callback returning project dynamic form element.
+ */
+function pmtimetracking_ajax_organization_nid(&$form, &$form_state) {
+  return $form['group1']['project_nid'];
+}
+
+/**
+ * Callback returning task dynamic form element.
+ */
+function pmtimetracking_ajax_project_nid(&$form, &$form_state) {
+  return $form['group1']['task_nid'];
+}
+
+/**
+ * Callback returning ticket dynamic form element.
+ */
+function pmtimetracking_ajax_task_nid(&$form, &$form_state) {
+  return $form['group1']['ticket_nid'];
+}
+
+/**
+ * Implments hook_insert().
+ */
+function pmtimetracking_insert($node) {
+  _pmtimetracking_beforesave($node);
+
+  db_insert('pmtimetracking')
+    ->fields(array(
+      'vid' => $node->vid,
+      'nid' => $node->nid,
+      'organization_nid' => $node->organization_nid,
+      'organization_title' => $node->organization_title,
+      'project_nid' => $node->project_nid,
+      'project_title' => $node->project_title,
+      'task_nid' => $node->task_nid,
+      'task_title' => $node->task_title,
+      'task_stepno' => $node->task_stepno,
+      'ticket_nid' => $node->ticket_nid,
+      'ticket_title' => $node->ticket_title,
+      'duration' => $node->duration,
+      'billing_duration' => $node->billing_duration,
+    ))
+    ->execute();
+}
+
+/**
+ * Implements hook_update().
+ */
+function pmtimetracking_update($node) {
+  _pmtimetracking_beforesave($node);
+
+  // If this is a new revision, then it is actually an insert operation
+  if ($node->revision) {
+    pmtimetracking_insert($node);
+  }
+  else {
+    db_update('pmtimetracking')
+      ->fields(array(
+        'vid' => $node->vid,
+        'nid' => $node->nid,
+        'organization_nid' => $node->organization_nid,
+        'organization_title' => $node->organization_title,
+        'project_nid' => $node->project_nid,
+        'project_title' => $node->project_title,
+        'task_nid' => $node->task_nid,
+        'task_title' => $node->task_title,
+        'task_stepno' => $node->task_stepno,
+        'ticket_nid' => $node->ticket_nid,
+        'ticket_title' => $node->ticket_title,
+        'duration' => $node->duration,
+        'billing_duration' => $node->billing_duration,
+      ))
+      ->condition('vid', $node->vid)
+      ->execute();
+  }
+}
+
+/**
+ * Prepares pmtimetracking nodes for save operations.
+ */
+function _pmtimetracking_beforesave(&$node) {
+  // Set duration field based on start and end dates.
+  $duration_in_seconds = strtotime($node->pm_date['und'][0]['value2']) - strtotime($node->pm_date['und'][0]['value']);
+  // Convert to hours
+  $node->duration = $duration_in_seconds / 60 / 60;
+
+  if (variable_get('pmtimetracking_auto_duration', TRUE)) {
+    $node->billing_duration = $node->duration;
+  }
+
+  $s = "SELECT n.title FROM {node} n INNER JOIN {pmorganization} o ON n.nid=o.nid WHERE type='pmorganization' AND n.nid=:oid";
+  $r = db_query($s, array( ':oid' => $node->organization_nid) );
+  $o = $r->fetchObject();
+  $node->organization_title = $o->title;
+
+  $s = "SELECT n.title, p.organization_title FROM {node} n INNER JOIN {pmproject} p ON n.nid=p.nid WHERE type='pmproject' AND n.nid=:pid";
+  $r = db_query($s, array( ':pid' => $node->project_nid ));
+  $p = $r->fetchObject();
+  $node->project_title = isset($p->title) ? $p->title : '';
+
+  $s = "SELECT title, stepno FROM {node} n INNER JOIN {pmtask} t ON n.nid=t.nid WHERE n.type='pmtask' AND n.nid=:tid";
+  $r = db_query($s, array( ':tid' => $node->task_nid ));
+  $ta = $r->fetchObject();
+  $node->task_title = isset($ta->title) ? $ta->title : '';
+  $node->task_stepno = isset($ta->stepno) ? $ta->stepno : '';
+
+  $s = "SELECT title FROM {node} n INNER JOIN {pmticket} t ON n.nid=t.nid WHERE n.type='pmticket' AND n.nid=:tktid";
+  $r = db_query($s, array( ':tktid' => $node->ticket_nid ));
+  $ti = $r->fetchObject();
+  $node->ticket_title = isset($ti->title) ? $ti->title : '';
+}
+
+/**
+ * Implements hook_nodeapi().
+ */
+function pmtimetracking_nodeapi(&$node, $op, $teaser, $page) {
+  switch ($op) {
+    case 'delete revision':
+      // Notice that we're matching a single revision based on the node's vid.
+      $num_deleted = db_delete('pmtimetracking')
+        ->condition('vid', $node->vid)
+        ->execute();
+      break;
+  }
+}
+
+/**
+ * Implements hook_delete().
+ */
+function pmtimetracking_delete($node) {
+  $num_deleted = db_delete('pmtimetracking')
+    ->condition('nid', $node->nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_load().
+ */
+function pmtimetracking_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $result = db_select('pmtimetracking', 'sta')
+      ->fields('sta')
+      ->condition('vid', $node->vid)
+      ->execute();
+    $record = $result->fetchAssoc();
+    if (empty($record)) {
+      watchdog('PM: Empty entry in table', 'Node was found but corresponding entry in pmtimetracking table was not found.');
+      continue;
+    }
+    foreach ($record as $key => $value) {
+      $node->$key = $value;
+    }
+    $node->title_old = $node->title;
+  }
+}
+
+/**
+ * Implements hook_view().
+ */
+function pmtimetracking_view($node, $view_mode) {
+  if ($view_mode == 'full' && node_is_page($node)) {
+    $breadcrumb = array();
+    $breadcrumb[] = l(t('Project Management'), 'pm');
+    $breadcrumb[] = l(t('Timetrackings'), 'pm/timetrackings');
+    drupal_set_breadcrumb($breadcrumb);
+  }
+  return theme('pmtimetracking_view', array('node' => $node, 'view_mode' => $view_mode));
+}
+
+/**
+ * Callback for the pmtimetracking admin settings page.
+ */
+function pmtimetracking_admin_settings() {
+  $form = array();
+
+  $form['pmtimetracking_auto_duration'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Always set billing duration to duration value.'),
+    '#default_value' => variable_get('pmtimetracking_auto_duration', TRUE),
+    '#description' => t('When checked, Project Management will set the billing duration equal to the duration each time the node is saved. The duration is always calculated from the start and end times.'),
+    '#size' => 5,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pmtimetracking_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'pmtimetracking'),
+  );
+}
+
+/**
+ * Implements  hook_node_access_records().
+ */
+function pmtimetracking_node_access_records($node) {
+  if (empty($node->status)) {
+    // Lets Drupal take care of permission to unpublished nodes.
+    return array();
+  }
+  $type = is_string($node) ? $node : $node->type;
+  $grants = array();
+  if ($type == 'pmtimetracking') {
+    // Project Management Timetracking: view all
+    $grants[] = array(
+      'realm' => 'pmtimetracking_view_all',
+      'gid' => 0,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Timetracking: view own
+    $grants[] = array(
+      'realm' => 'pmtimetracking_view_own',
+      'gid' => $node->uid,
+      'grant_view' => 1,
+      'grant_update' => 0,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Timetracking: view of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmtimetracking_view_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 1,
+        'grant_update' => 0,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+
+    // Project Management Timetracking: edit all
+    $grants[] = array(
+      'realm' => 'pmtimetracking_update_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Timetracking: edit own
+    $grants[] = array(
+      'realm' => 'pmtimetracking_update_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+      'priority' => 0,
+    );
+    // Project Management Timetracking: edit of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmtimetracking_update_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 1,
+        'grant_delete' => 0,
+        'priority' => 0,
+      );
+    }
+
+    // Project Management Timetracking: delete all
+    $grants[] = array(
+      'realm' => 'pmtimetracking_delete_all',
+      'gid' => 0,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management Timetracking: delete own
+    $grants[] = array(
+      'realm' => 'pmtimetracking_delete_own',
+      'gid' => $node->uid,
+      'grant_view' => 0,
+      'grant_update' => 0,
+      'grant_delete' => 1,
+      'priority' => 0,
+    );
+    // Project Management Timetracking: delete of user organization
+    if ( isset($node->organization_nid) && !empty($node->organization_nid)) {
+      $grants[] = array(
+        'realm' => 'pmtimetracking_delete_if_user_organization',
+        'gid' => $node->organization_nid,
+        'grant_view' => 0,
+        'grant_update' => 0,
+        'grant_delete' => 1,
+        'priority' => 0,
+      );
+    }
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_node_grants().
+ */
+function pmtimetracking_node_grants($account, $op) {
+
+  if (module_exists('pmperson')) {
+    _pmperson_user_load($account);
+  }
+  $grants = array();
+  switch ($op) {
+    case 'view':
+      if (user_access('Project Management Timetracking: view all', $account)) {
+        $grants['pmtimetracking_view_all'] = array(0);
+      }
+      if (user_access('Project Management Timetracking: view own', $account)) {
+        $grants['pmtimetracking_view_own'] = array($account->uid);
+      }
+      if (user_access('Project Management Timetracking: view of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pmtimetracking_view_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+
+    case 'update':
+      if (user_access('Project Management Timetracking: edit all', $account)) {
+        $grants['pmtimetracking_update_all'] = array(0);
+      }
+      if (user_access('Project Management Timetracking: edit own', $account)) {
+        $grants['pmtimetracking_update_own'] = array($account->uid);
+      }
+      if (user_access('Project Management Timetracking: edit of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pmtimetracking_update_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+
+    case 'delete':
+      if (user_access('Project Management Timetracking: delete all', $account)) {
+        $grants['pmtimetracking_delete_all'] = array(0);
+      }
+      if (user_access('Project Management Timetracking: delete own', $account)) {
+        $grants['pmtimetracking_delete_own'] = array($account->uid);
+      }
+      if (user_access('Project Management Timetracking: delete of user organization', $account) AND !empty($account->pmorganization_nid)) {
+        $grants['pmtimetracking_delete_if_user_organization'] = array($account->pmorganization_nid);
+      }
+      break;
+  }
+  return $grants;
+}
+
+/**
+ * Implements hook_pm_dashboard_links().
+ */
+function pmtimetracking_pm_dashboard_links($type) {
+  $links = array();
+  if ($type == 'page' || $type == 'block') {
+    $links[] = array(
+      'theme' => 'pm_dashboard_link',
+      'title' => t('Timetrackings'),
+      'icon' => 'pmtimetrackings',
+      'path' => 'pm/timetrackings',
+      'params' => array(),
+      'node_type' => 'pmtimetracking',
+      'add_type' => 'pmtimetracking',
+      'map' => array(),
+      'weight' => 8,
+    );
+  }
+  return $links;
+}

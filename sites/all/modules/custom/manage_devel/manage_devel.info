@@ -1,0 +1,15 @@
+name = manage devel
+core = 7.x
+
+dependencies[] = diff
+dependencies[] = devel
+dependencies[] = realistic_dummy_content_api
+dependencies[] = coder_review
+dependencies[] = context_ui
+dependencies[] = views_ui
+dependencies[] = masquerade
+dependencies[] = search_krumo
+dependencies[] = simpletest_turbo
+dependencies[] = devel_generate
+dependencies[] = config_builder_ui
+dependencies[] = maillog
