@@ -27,10 +27,11 @@ function manage_deploy_commerce_create_product($sku, $title, $price_cents, $type
       LANGUAGE_NONE => array(
         array(
           'amount' => $price_cents,
-          'currency_code' => 'CAD',
+          'currency_code' => 'USD',
         ),
       ),
     );
     commerce_product_save($product);
+    debug($product);
   }
 }

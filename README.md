@@ -24,8 +24,13 @@ Update
     drush updb -y
     drush vset maintenance_mode 0
 
-Roadmap
--------
+Features
+--------
+
+To define new clients:
+
+ * Log in with an administrator account.
+
 
 The following features are included in this sytem:
 

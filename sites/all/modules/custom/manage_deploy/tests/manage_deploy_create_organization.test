@@ -5,6 +5,8 @@
  * This file contains the testing code for this module
  */
 
+define('MANAGE_DEPLOY_NEW_ORDER_FIELD', 'commerce_customer_billing[und][profiles][0][commerce_customer_address][und][0]');
+
 /**
  * The test case
  */
@@ -27,9 +29,25 @@ class manage_deploy_create_organizationTestCase extends manage_deploy_baseTestCa
     $user = dcycle_create_user(array('roles' => array('administrator'), 'pass_raw' => TRUE));
     $this->drupalLogin($user);
     $edit = array(
-      'title' => 'My Client',
+      'email' => 'mycustomer@example.com',
     );
-    $this->drupalPost('node/add/pmorganization', $edit, 'Save');
-    $this->assertText('has been created', 'Organization created successfully');
+    $this->drupalPost('admin/commerce/orders/add', $edit, 'Create Order');
+    $edit = array(
+    	MANAGE_DEPLOY_NEW_ORDER_FIELD . '[name_line]' => 'My Client',
+    	MANAGE_DEPLOY_NEW_ORDER_FIELD . '[country]' => 'CA',
+    	MANAGE_DEPLOY_NEW_ORDER_FIELD . '[thoroughfare]' => '123 Elm Street',
+    	MANAGE_DEPLOY_NEW_ORDER_FIELD . '[locality]' => 'Montreal',
+    );
+    $this->drupalPost(NULL, $edit, 'Save order');
+    $this->drupalPost(NULL, array(), 'Add line item');
+    $edit = array(
+    	'commerce_line_items[und][actions][product_sku]' => 'H',
+    );
+    $this->drupalPost(NULL, $edit, 'Add product');
+    $edit = array(
+    	'commerce_line_items[und][line_items][1][commerce_unit_price][und][0][amount]' => 21,
+    	'commerce_line_items[und][line_items][1][quantity]' => 3,
+    );
+    $this->drupalPost(NULL, $edit, 'Save order');
   }
 }
