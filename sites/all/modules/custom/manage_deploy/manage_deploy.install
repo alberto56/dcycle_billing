@@ -87,7 +87,7 @@ function manage_deploy_update_7011() {
 /**
  * Revert features and update dependencies
  */
-function manage_deploy_update_7013() {
+function manage_deploy_update_7014() {
   features_revert();
   manage_deploy_update_dependencies();
 }
