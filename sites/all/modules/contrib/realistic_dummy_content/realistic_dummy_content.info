@@ -10,10 +10,3 @@ tags[] = developer
 ; realistic_dummy_content_api is disabled. The idea is to enable in on demo and
 ; development sites, but not on production.
 dependencies[] = realistic_dummy_content_api
-
-; Information added by Drupal.org packaging script on 2014-08-29
-version = "7.x-1.x-dev"
-core = "7.x"
-project = "realistic_dummy_content"
-datestamp = "1409338737"
-
