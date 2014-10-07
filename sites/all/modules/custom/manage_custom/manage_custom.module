@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * Set the title to the description
+ *
+ * See stackoverflow.com/questions/13491983
+ */
+function manage_custom_commerce_order_presave($order) {
+  foreach ($order->commerce_line_items[LANGUAGE_NONE] as $line_item_info) {
+    $line_item = commerce_line_item_load($line_item_info['line_item_id']);
+    if (isset($line_item->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'])) {
+      $line_item->line_item_label .= ' ' . $line_item->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'];
+    }
+    commerce_line_item_save($line_item);
+  }
+}

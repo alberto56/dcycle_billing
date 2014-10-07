@@ -31,7 +31,7 @@ function manage_devel_update_dependencies() {
 /**
  * Revert features and update dependencies
  */
-function manage_devel_update_7001() {
+function manage_devel_update_7002() {
   features_revert();
   manage_devel_update_dependencies();
 }

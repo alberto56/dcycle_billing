@@ -27,6 +27,10 @@ dependencies[] = commerce_product
 dependencies[] = commerce_line_item_cart_form
   ; allows you to register a payment
 dependencies[] = commerce_payment_ui
+  ; add custom code
+dependencies[] = manage_custom
+  ; add our custom fields etc.
+dependencies[] = manage_feature
 
 disabled[] = toolbar
 
