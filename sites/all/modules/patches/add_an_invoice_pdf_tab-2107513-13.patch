@@ -1,0 +1,33 @@
+diff --git a/commerce_billy.module b/commerce_billy.module
+index 8007bda..f80cf14 100644
+--- a/commerce_billy.module
++++ b/commerce_billy.module
+@@ -12,7 +12,6 @@ define('COMMERCE_BILLY_INVOICE_METHOD_YEARLY', 'yearly');
+ // Invoice number is regenerated every month.
+ define('COMMERCE_BILLY_INVOICE_METHOD_MONTHLY', 'monthly');
+ 
+-
+ /**
+  * Implements hook_commerce_order_state_info().
+  */
+diff --git a/modules/commerce_billy_pdf/commerce_billy_pdf.module b/modules/commerce_billy_pdf/commerce_billy_pdf.module
+index 234b2dd..e8252e2 100644
+--- a/modules/commerce_billy_pdf/commerce_billy_pdf.module
++++ b/modules/commerce_billy_pdf/commerce_billy_pdf.module
+@@ -25,6 +25,16 @@ function commerce_billy_pdf_menu() {
+     'type' => MENU_LOCAL_TASK,
+     'file' => 'commerce_billy_pdf.admin.inc',
+   );
++  $items['admin/commerce/orders/%commerce_order/pdf-invoice'] = array(
++    'title' => 'Invoice (PDF)',
++    'page callback' => 'commerce_billy_pdf',
++    'page arguments' => array(3),
++    'access callback' => 'commerce_billy_pdf_view_access',
++    'access arguments' => array(3),
++    'type' => MENU_LOCAL_TASK,
++    'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
++    'weight' => 10,
++  );
+   return $items;
+ }
+ 

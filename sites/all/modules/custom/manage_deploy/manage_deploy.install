@@ -32,9 +32,41 @@ function manage_deploy_update_dependencies() {
 }
 
 /**
- * Revert features and update dependencies
+ * Move fonts for Commerce Billy PDF generation.
  */
 function manage_deploy_update_7005() {
+  recurse_copy(DRUPAL_ROOT . '/sites/all/libraries/dompdf/lib/fonts', DRUPAL_ROOT . '/sites/default/files/fonts');
+}
+
+function _manage_deploy_commerce_create_product($sku, $title, $price_cents, $type) {
+  if (commerce_product_validate_sku_unique($sku, NULL)) {
+    $product = new stdClass;
+    $product->sku = $sku;
+    $product->title = $title;
+    $product->type = $type;
+    $product->commerce_price = array(
+      LANGUAGE_NONE => array(
+        array(
+          'amount' => $price_cents,
+          'currency_code' => 'CAD',
+        ),
+      ),
+    );
+    commerce_product_save($product);
+  }
+}
+
+/**
+ * Move fonts for Commerce Billy PDF generation.
+ */
+function manage_deploy_update_7007() {
+  _manage_deploy_commerce_create_product('H', 'Hours of work / Heures de travail', 15000, 'product');
+}
+
+/**
+ * Revert features and update dependencies
+ */
+function manage_deploy_update_7008() {
   features_revert();
   manage_deploy_update_dependencies();
 }

@@ -16,7 +16,7 @@ class manage_deploy_create_organizationTestCase extends manage_deploy_baseTestCa
     return array(
       'name' => t('manage_deploy_create_organization: basic test'),
       'description' => t('describe test.'),
-      'group' => 'manage_deploy_create_organization',
+      'group' => 'manage_deploy',
     );
   }
 
@@ -24,7 +24,7 @@ class manage_deploy_create_organizationTestCase extends manage_deploy_baseTestCa
    * Test case for manage_deploy_create_organization.
    */
   public function testModule() {
-    $user = dcycle_create_user(array('roles' => array('administrator')));
+    $user = dcycle_create_user(array('roles' => array('administrator'), 'pass_raw' => TRUE));
     $this->drupalLogin($user);
     $edit = array(
       'title' => 'My Client',

@@ -25,6 +25,16 @@ function commerce_billy_pdf_menu() {
     'type' => MENU_LOCAL_TASK,
     'file' => 'commerce_billy_pdf.admin.inc',
   );
+  $items['admin/commerce/orders/%commerce_order/pdf-invoice'] = array(
+    'title' => 'Invoice (PDF)',
+    'page callback' => 'commerce_billy_pdf',
+    'page arguments' => array(3),
+    'access callback' => 'commerce_billy_pdf_view_access',
+    'access arguments' => array(3),
+    'type' => MENU_LOCAL_TASK,
+    'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
+    'weight' => 10,
+  );
   return $items;
 }
 

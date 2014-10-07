@@ -15,6 +15,6 @@ class manage_deploy_baseTestCase extends DrupalWebTestCase {
   public function setUp() {
     // set up a new site with default core modules, manage_deploy_base, and
     // dependencies.
-    parent::setUp('manage_deploy_base');
+    parent::setUp('manage_deploy');
   }
 }

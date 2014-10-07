@@ -13,3 +13,4 @@ dependencies[] = simpletest_turbo
 dependencies[] = devel_generate
 dependencies[] = config_builder_ui
 dependencies[] = maillog
+dependencies[] = commerce_product_ui
