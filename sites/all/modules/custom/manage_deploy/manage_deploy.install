@@ -48,11 +48,12 @@ function _manage_deploy_commerce_create_product($sku, $title, $price_cents, $typ
       LANGUAGE_NONE => array(
         array(
           'amount' => $price_cents,
-          'currency_code' => 'CAD',
+          'currency_code' => 'USD',
         ),
       ),
     );
     commerce_product_save($product);
+    debug($product);
   }
 }
 
@@ -64,9 +65,16 @@ function manage_deploy_update_7007() {
 }
 
 /**
+ * Enable CAD, USD as currencies
+ */
+function manage_deploy_update_7009() {
+  variable_set('commerce_enabled_currencies', drupal_map_assoc(array('USD', 'CAD')));
+}
+
+/**
  * Revert features and update dependencies
  */
-function manage_deploy_update_7008() {
+function manage_deploy_update_7010() {
   features_revert();
   manage_deploy_update_dependencies();
 }

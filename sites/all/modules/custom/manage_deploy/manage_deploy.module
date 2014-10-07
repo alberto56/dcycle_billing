@@ -32,6 +32,5 @@ function manage_deploy_commerce_create_product($sku, $title, $price_cents, $type
       ),
     );
     commerce_product_save($product);
-    debug($product);
   }
 }
