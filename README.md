@@ -27,9 +27,17 @@ Update
 Features
 --------
 
-To define new clients:
+Defining new customers should be done while you create an order:
 
  * Log in with an administrator account.
+ * Go to admin/commerce/orders/add
+ * In "Create a new customer", enter your customer's email address
+ * Create your order.
+
+Adding your hours to an order:
+
+ * Add a product with the SKU "H" (for hourly rate).
+
 
 
 The following features are included in this sytem:

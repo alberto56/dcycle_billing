@@ -35,6 +35,8 @@ dependencies[] = manage_feature
 dependencies[] = pmexpense
 
 disabled[] = toolbar
+disabled[] = overlay
+disabled[] = inline_entity_form
 
 files[] = tests/manage_deploy_base.test
 files[] = tests/manage_deploy_create_organization.test

@@ -9,8 +9,36 @@ function manage_custom_commerce_order_presave($order) {
   foreach ($order->commerce_line_items[LANGUAGE_NONE] as $line_item_info) {
     $line_item = commerce_line_item_load($line_item_info['line_item_id']);
     if (isset($line_item->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'])) {
-      $line_item->line_item_label .= ' ' . $line_item->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'];
+      $line_item->line_item_label = $line_item->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'];
     }
     commerce_line_item_save($line_item);
+  }
+}
+
+function manage_custom_form_commerce_order_ui_order_form_alter(&$form, &$form_state) {
+  if (isset($form['commerce_line_items'][LANGUAGE_NONE]['line_items'])) {
+    foreach ($form['commerce_line_items'][LANGUAGE_NONE]['line_items'] as $id => $info) {
+      $desc = isset($info['line_item']['#value']->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value']) ? $info['line_item']['#value']->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'] : '';
+      $form['desc_' . $id] = array(
+        '#title' => 'desc line ' . $id,
+        '#type' => 'textfield',
+        '#default_value' => $desc,
+      );
+    }
+  }
+  $form['actions']['submit']['#submit'][] = 'manage_custom_order_submit';
+  $form['#submit'][] = 'manage_custom_order_submit';
+}
+
+function manage_custom_order_submit($form, &$form_state) {
+  if (isset($form['commerce_line_items'][LANGUAGE_NONE]['line_items'])) {
+    foreach ($form['commerce_line_items'][LANGUAGE_NONE]['line_items'] as $id => $info) {
+      if (is_numeric($id)) {
+        $desc = $form_state['values']['desc_' . $id];
+        $line_item = commerce_line_item_load($id);
+        $line_item->field_dcycle_line_item_desc[LANGUAGE_NONE][0]['value'] = $desc;
+        commerce_line_item_save($line_item);
+      }
+    }
   }
 }
