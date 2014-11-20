@@ -33,6 +33,10 @@ dependencies[] = manage_custom
 dependencies[] = manage_feature
   ; for expense reporting
 dependencies[] = pmexpense
+  ; to calc totals of orders for tax purposes
+dependencies[] = views_calc
+  ; date manipulation in views
+dependencies[] = date_views
 
 disabled[] = toolbar
 disabled[] = overlay
