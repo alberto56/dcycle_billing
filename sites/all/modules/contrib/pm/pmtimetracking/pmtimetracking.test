@@ -1,7 +1,11 @@
 <?php
 /**
  * @file
- * Test definitions for the PM Timetracking module.
+ * Test definitions for PM Timetracking.
+ */
+
+/**
+ * Define a test case for PM Timetracking.
  */
 class PMTimetrackingTestCase extends DrupalWebTestCase {
 
@@ -27,30 +31,36 @@ class PMTimetrackingTestCase extends DrupalWebTestCase {
    * Test case covering creation of pmtimetrackings.
    */
   public function testpmtimetrackingCreate() {
-    // Create and login user
-    $user = $this->drupalCreateUser(array('Project Management Organization: add', 'Project Management Organization: view all', 'Project Management Project: add', 'Project Management Project: view all', 'Project Management Task: add', 'Project Management Task: view all', 'Project Management Ticket: add', 'Project Management Ticket: view all', 'Project Management Timetracking: add', 'Project Management Timetracking: view all'));
+    // Log in with permission to create test content.
+    $user = $this->drupalCreateUser(array(
+      'create pmorganization content',
+      'create pmproject content',
+      'create pmtask content',
+      'create pmticket content',
+      'create pmtimetracking content',
+    ));
     $this->drupalLogin($user);
 
-    // Create organization and invoice
+    // Create test content.
     $org = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $prj = array(
       'title' => $this->randomName(32),
-      'organization_nid' => '1',
+      // 'organization_nid' => '1',
     );
     $task = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $ticket = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $timetracking = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $this->drupalPost('node/add/pmorganization', $org, t('Save'));
     $this->drupalPost('node/add/pmproject', $prj, t('Save'));
@@ -60,4 +70,15 @@ class PMTimetrackingTestCase extends DrupalWebTestCase {
 
     $this->assertText(t('Timetracking @title has been created.', array('@title' => $timetracking['title'])));;
   }
+
+  /**
+   * Tests module uninstall path.
+   */
+  public function testpmtimetrackingUninstall() {
+    $module = array('pmtimetracking');
+
+    module_disable($module);
+    drupal_uninstall_modules($module);
+  }
+
 }

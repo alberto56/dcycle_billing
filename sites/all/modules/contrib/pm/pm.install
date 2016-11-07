@@ -5,81 +5,6 @@
  */
 
 /**
- * Implements hook_install().
- */
-function pm_install() {
-  variable_set('pm_icons_path', drupal_get_path('module', 'pm') . '/icons');
-  variable_set('pm_organization_nid', 0);
-
-  // Set up billing status field.
-  field_create_field(array(
-    'field_name' => 'pm_billing_status',
-    'type' => 'list_text',
-    'settings' => array(
-      'allowed_values' => array(
-        'Not billable' => 'Not billable',
-        'Billable' => 'Billable',
-        'Billed' => 'Billed',
-      ),
-    ),
-  ));
-
-  // Set up date field.
-  field_create_field(array(
-    'type' => 'datetime',
-    'field_name' => 'pm_date',
-    'settings' => array(
-      'granularity' => array(
-        'year' => 'year',
-        'month' => 'month',
-        'day' => 'day',
-        'hour' => 'hour',
-        'minute' => 'minute',
-        'second' => 0,
-      ),
-      'tz_handling' => 'none',
-      'timezone_db' => '',
-      'todate' => 'optional',
-    ),
-    'cardinality' => '1',
-  ));
-}
-
-/**
- * Implements hook_uninstall().
- */
-function pm_uninstall() {
-  variable_del('pm_icons_path');
-  variable_del('pm_organization_nid');
-
-  drupal_uninstall_schema('pm');
-}
-
-/**
- * Implements hook_schema().
- */
-function pm_schema() {
-  $schema['pmattribute'] = array(
-    'fields'          => array(
-      'aid'           => array('type' => 'serial', 'not null' => TRUE),
-      'domain'        => array('type' => 'varchar', 'length' => 100),
-      'akey'          => array('type' => 'varchar', 'length' => 100),
-      'avalue'        => array('type' => 'varchar', 'length' => 100),
-      'parent_domain' => array('type' => 'varchar', 'length' => 100),
-      'weight'        => array('type' => 'int', 'not null' => FALSE, 'default' => 0, 'size' => 'small'),
-      'isdefault'     => array('type' => 'int', 'not null' => FALSE, 'default' => 0, 'size' => 'tiny'),
-      'isactive'      => array('type' => 'int', 'not null' => FALSE, 'default' => 1, 'size' => 'tiny'),
-    ),
-    'primary key' => array('aid'),
-    'indexes' => array(
-      'domain'        => array('domain'),
-    ),
-  );
-
-  return $schema;
-}
-
-/**
  * Implements hook_update_last_removed().
  */
 function pm_update_last_removed() {
@@ -87,57 +12,73 @@ function pm_update_last_removed() {
 }
 
 /**
- * Enable new module dependencies. Make billing status field available to PM content types.
+ * Enable new module dependencies and create billing status field.
  */
 function pm_update_7101() {
-  // Enable new dependencies.
-  if (!module_enable(array('date', 'entityreference', 'list'))) {
-    throw new DrupalUpdateException('This version requires one or more modules that could not be enabled.');
-  }
-
-  // Combining these operations in one request means we have to clear the
-  // field info cache.
-  field_info_cache_clear();
-
-  // Set up billing status field.
-  field_create_field(array(
-    'field_name' => 'pm_billing_status',
-    'type' => 'list_text',
-    'settings' => array(
-      'allowed_values' => array(
-        'Not billable' => 'Not billable',
-        'Billable' => 'Billable',
-        'Billed' => 'Billed',
-      ),
-    ),
-  ));
 }
 
 /**
  * Make date field available to PM content types.
  */
 function pm_update_7102() {
-
-  // Set up date field.
-  field_create_field(array(
-    'type' => 'datetime',
-    'field_name' => 'pm_date',
-    'settings' => array(
-      'granularity' => array(
-        'year' => 'year',
-        'month' => 'month',
-        'day' => 'day',
-        'hour' => 'hour',
-        'minute' => 'minute',
-        'second' => 0,
-      ),
-      'tz_handling' => 'none',
-      'timezone_db' => '',
-      'todate' => 'optional',
-    ),
-    'cardinality' => '1',
-  ));
-
   variable_del('pm_yearsrangebegin');
   variable_del('pm_yearsrangeend');
+}
+
+/**
+ * Migration from 7.x-1.x to 7.x-2.x.
+ */
+function pm_update_7103(&$sandbox) {
+  $module_list = array('pmpermission');
+  // Enable new dependencies.
+  if (!module_enable($module_list, TRUE)) {
+    throw new DrupalUpdateException('This version requires one or more modules that could not be enabled.');
+  }
+}
+
+/**
+ * Removal of legacy attribute table.
+ */
+function pm_update_7104() {
+  db_drop_table('pmattribute');
+}
+
+/**
+ * Removal of legacy variable.
+ */
+function pm_update_7105() {
+  variable_del('pm_organization_nid');
+}
+
+/**
+ * Removal of legacy variable related to icons.
+ */
+function pm_update_7108() {
+  variable_del('pm_icons_path');
+}
+
+/**
+ * Migrate pm_icons_display settings to new pm_icon variable.
+ */
+function pm_update_7200() {
+  $display_icon = variable_get('pm_icons_display', TRUE);
+  if ($display_icon) {
+    variable_set('pm_icon', PM_ICON_SET_DEFAULT_BEHAVIOUR);
+  }
+  else {
+    variable_set('pm_icon', PM_ICON_SET_NO_ICON);
+  }
+  variable_del('pm_icons_display');
+}
+
+/**
+ * Remove legacy variables related to taxation.
+ */
+function pm_update_7201() {
+  variable_del('pm_tax1_app');
+  variable_del('pm_tax1_name');
+  variable_del('pm_tax1_percent');
+  variable_del('pm_tax2_app');
+  variable_del('pm_tax2_name');
+  variable_del('pm_tax2_percent');
 }

@@ -2,14 +2,17 @@ name = PM Organization
 description = "Allows storing of organizations for use within Project Management"
 dependencies[] = pm
 dependencies[] = views
+dependencies[] = link
+dependencies[] = email
+dependencies[] = addressfield
+
 package = Project Management
 core = 7.x
-configure = admin/config/pm/pmorganization
 files[] = pmorganization.test
 
-; Information added by Drupal.org packaging script on 2014-04-01
-version = "7.x-1.0-alpha5"
+; Information added by Drupal.org packaging script on 2016-04-18
+version = "7.x-2.2"
 core = "7.x"
 project = "pm"
-datestamp = "1396356846"
+datestamp = "1461007768"
 

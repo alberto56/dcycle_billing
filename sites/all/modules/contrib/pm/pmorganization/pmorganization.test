@@ -1,7 +1,11 @@
 <?php
 /**
  * @file
- * Test definitions for the PM Organization module
+ * Test definitions for PM Organization.
+ */
+
+/**
+ * Define a test case for PM Organization.
  */
 class PMOrganizationTestCase extends DrupalWebTestCase {
 
@@ -10,7 +14,7 @@ class PMOrganizationTestCase extends DrupalWebTestCase {
    */
   public static function getInfo() {
     return array(
-      'name' => 'PM Organization functionality',
+      'name' => 'PM Organization',
       'description' => 'Test the functionality of the PM Organization module',
       'group' => 'Project Management',
     );
@@ -20,37 +24,45 @@ class PMOrganizationTestCase extends DrupalWebTestCase {
    * Standard configuration for all test cases.
    */
   public function setUp() {
-    parent::setUp('views', 'pm', 'pmorganization');
+    parent::setUp('views', 'pm', 'link', 'email', 'addressfield', 'pmorganization');
   }
 
   /**
-   * Test case covering access of organization list.
+   * Test case ensuring that the list view is present.
    */
-  public function testpmorganizationAccess() {
+  public function testpmorganizationList() {
+    // Anonymous user.
     $this->drupalGet('pm/organizations');
-    $this->assertResponse(403, t('Make sure access is denied to Project Management Organizations list for anonymous user'));
+    $this->assertResponse(403, 'Access is denied to the anonymous user.');
 
-    $basic_user = $this->drupalCreateUser();
-    $this->drupalLogin($basic_user);
+    // Authenticated user.
+    $authenticated_user = $this->drupalCreateUser();
+    $this->drupalLogin($authenticated_user);
     $this->drupalGet('pm/organizations');
-    $this->assertResponse(403, t('Make sure access is denied to Project Management Organizations list for basic user'));
+    $this->assertResponse(403, 'Access is denied to the authenticated user.');
 
+    // Privileged user.
     $privileged_user = $this->drupalCreateUser(array('Project Management Organization: access'));
     $this->drupalLogin($privileged_user);
     $this->drupalGet('pm/organizations');
-    $this->assertText(t('Organizations'), t('Make sure the correct page has been displayed by checking that the title is "Organizations".'));
+    $this->assertText(t('Organizations'), t('Access granted for the privileged user. Correct page has been confirmed by checking that the title is "Organizations".'));
   }
 
   /**
-   * Test case covering creation of pmorganizations.
+   * Test case ensuring that organization nodes can be created.
    */
   public function testpmorganizationCreate() {
-    $privileged_user = $this->drupalCreateUser(array('Project Management Organization: add'));
-    $this->drupalLogin($privileged_user);
+    // Log in with permission to create test content.
+    $user = $this->drupalCreateUser(array(
+      'access content',
+      'create pmorganization content',
+    ));
+    $this->drupalLogin($user);
 
+    // Create test content.
     $edit = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $this->drupalPost('node/add/pmorganization', $edit, t('Save'));
     $this->assertText(t('Organization @title has been created.', array('@title' => $edit['title'])));

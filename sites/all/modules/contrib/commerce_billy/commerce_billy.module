@@ -12,6 +12,7 @@ define('COMMERCE_BILLY_INVOICE_METHOD_YEARLY', 'yearly');
 // Invoice number is regenerated every month.
 define('COMMERCE_BILLY_INVOICE_METHOD_MONTHLY', 'monthly');
 
+
 /**
  * Implements hook_commerce_order_state_info().
  */
@@ -90,7 +91,7 @@ function commerce_billy_invoice_nr($order) {
   // Check if we have a unique order number. If not, write a watchdog error and
   // do not change the order number.
   if (!commerce_order_validate_number_unique($invoice_nr, $order->order_id)) {
-    watchdog('commerce_billy', t('Error: Order number %number for order %id already exists.', array('%number' => $invoice_nr, '%id' => $order->order_id)), WATCHDOG_ERROR);
+    watchdog('commerce_billy', 'Error: Order number %number for order %id already exists.', array('%number' => $invoice_nr, '%id' => $order->order_id), WATCHDOG_ERROR);
   }
   else {
     $order->order_number = $invoice_nr;
@@ -222,6 +223,10 @@ function commerce_billy_menu() {
 function commerce_billy_flush_caches() {
   $entity_info = entity_get_info('commerce_order');
   $order_types = array_keys($entity_info['bundles']);
+
+  // Allow modules to alter the list of order types to which invoice fields
+  // will be added. Some order types might not need the invoice fields.
+  drupal_alter('commerce_billy_order_types', $order_types);
   $field_definition = array(
     'type' => 'datestamp',
     'locked' => FALSE,

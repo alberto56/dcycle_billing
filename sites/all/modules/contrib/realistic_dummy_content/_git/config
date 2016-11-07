@@ -1,0 +1,13 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = alberto56@git.drupal.org:project/realistic_dummy_content.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "7.x-1.x"]
+	remote = origin
+	merge = refs/heads/7.x-1.x

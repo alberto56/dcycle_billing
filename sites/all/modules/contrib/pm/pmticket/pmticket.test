@@ -1,7 +1,11 @@
 <?php
 /**
  * @file
- * Test definitions for the PM Ticket module.
+ * Test definitions for PM Ticket.
+ */
+
+/**
+ * Define a test case for PM Ticket.
  */
 class PMTicketTestCase extends DrupalWebTestCase {
 
@@ -45,26 +49,31 @@ class PMTicketTestCase extends DrupalWebTestCase {
    * Test case covering creation of pmtickets.
    */
   public function testpmticketCreate() {
-    // Create and login user
-    $user = $this->drupalCreateUser(array('Project Management Organization: add', 'Project Management Organization: view all', 'Project Management Project: add', 'Project Management Project: view all', 'Project Management Task: add', 'Project Management Task: view all', 'Project Management Ticket: add', 'Project Management Ticket: view all'));
+    // Log in with permission to create test content.
+    $user = $this->drupalCreateUser(array(
+      'create pmorganization content',
+      'create pmproject content',
+      'create pmtask content',
+      'create pmticket content',
+    ));
     $this->drupalLogin($user);
 
-    // Create organization and invoice
+    // Create test content.
     $org = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $prj = array(
       'title' => $this->randomName(32),
-      'organization_nid' => '1',
+      // 'organization_nid' => '1',
     );
     $task = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $ticket = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $this->drupalPost('node/add/pmorganization', $org, t('Save'));
     $this->drupalPost('node/add/pmproject', $prj, t('Save'));
@@ -73,4 +82,15 @@ class PMTicketTestCase extends DrupalWebTestCase {
 
     $this->assertText(t('Ticket @title has been created.', array('@title' => $ticket['title'])));;
   }
+
+  /**
+   * Tests module uninstall path.
+   */
+  public function testpmticketUninstall() {
+    $module = array('pmticket');
+
+    module_disable($module);
+    drupal_uninstall_modules($module);
+  }
+
 }

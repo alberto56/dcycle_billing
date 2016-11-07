@@ -36,7 +36,7 @@ has all of the privileges listed above (except possibly CREATE TEMPORARY TABLES,
 which is currently only used by Drupal core automated tests and some
 contributed modules), you will not be able to install or run Drupal.
 
-If successful, MySQL will them reply with:
+If successful, MySQL will reply with:
 
   Query OK, 0 rows affected
 

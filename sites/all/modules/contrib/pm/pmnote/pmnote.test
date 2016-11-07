@@ -1,11 +1,11 @@
 <?php
 /**
  * @file
- * Test definitions for the PM Note module.
+ * Test definitions for PM Note.
  */
 
 /**
- * Test definition for the PM Note module.
+ * Define a test case for PM Note.
  */
 class PMNoteTestCase extends DrupalWebTestCase {
 
@@ -24,7 +24,7 @@ class PMNoteTestCase extends DrupalWebTestCase {
    * Set up of test environment.
    */
   public function setUp() {
-    parent::setUp('views', 'pm', 'pmorganization', 'pmproject', 'pmtask', 'pmnote');
+    parent::setUp('views', 'pm', 'pmorganization', 'pmproject', 'pmtask', 'pmticket', 'pmnote');
   }
 
   /**
@@ -49,32 +49,54 @@ class PMNoteTestCase extends DrupalWebTestCase {
    * Node creation test case.
    */
   public function testpmnoteCreate() {
-    // Create and login user
-    $user = $this->drupalCreateUser(array('Project Management Organization: add', 'Project Management Organization: view all', 'Project Management Project: add', 'Project Management Project: view all', 'Project Management Task: add', 'Project Management Task: view all', 'Project Management note: add', 'Project Management note: view all'));
+    // Log in with permission to create test content.
+    $user = $this->drupalCreateUser(array(
+      'create pmorganization content',
+      'create pmproject content',
+      'create pmtask content',
+      'create pmticket content',
+      'create pmnote content',
+    ));
     $this->drupalLogin($user);
 
-    // Create organization and invoice
+    // Create test content.
     $org = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $prj = array(
       'title' => $this->randomName(32),
-      'organization_nid' => '1',
+      // 'organization_nid' => '1',
     );
     $task = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
+    );
+    $ticket = array(
+      'title' => $this->randomName(32),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $note = array(
       'title' => $this->randomName(32),
-      'body[und][0][value]' => $this->randomName(64),
+      // 'body[und][0][value]' => $this->randomName(64),
     );
     $this->drupalPost('node/add/pmorganization', $org, t('Save'));
     $this->drupalPost('node/add/pmproject', $prj, t('Save'));
     $this->drupalPost('node/add/pmtask', $task, t('Save'));
+    $this->drupalPost('node/add/pmticket', $ticket, t('Save'));
     $this->drupalPost('node/add/pmnote', $note, t('Save'));
 
     $this->assertText(t('Note @title has been created.', array('@title' => $note['title'])));;
   }
+
+  /**
+   * Tests module uninstall path.
+   */
+  public function testpmnoteUninstall() {
+    $module = array('pmnote');
+
+    module_disable($module);
+    Drupal_uninstall_modules($module);
+  }
+
 }

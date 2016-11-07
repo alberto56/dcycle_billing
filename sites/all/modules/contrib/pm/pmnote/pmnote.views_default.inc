@@ -15,7 +15,7 @@ function pmnote_views_default_views() {
   $view->description = '';
   $view->tag = 'pm';
   $view->base_table = 'node';
-  $view->human_name = 'PM Note list';
+  $view->human_name = 'PM Note';
   $view->core = 7;
   $view->api_version = '3.0';
   $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
@@ -33,29 +33,13 @@ function pmnote_views_default_views() {
   $handler->display->display_options['pager']['options']['items_per_page'] = '10';
   $handler->display->display_options['style_plugin'] = 'table';
   $handler->display->display_options['style_options']['columns'] = array(
-    'title_3' => 'title_3',
-    'title_2' => 'title_2',
     'title_1' => 'title_1',
-    'title' => 'title',
+    'body' => 'body',
     'edit_node' => 'edit_node',
     'delete_node' => 'edit_node',
   );
   $handler->display->display_options['style_options']['default'] = '-1';
   $handler->display->display_options['style_options']['info'] = array(
-    'title_3' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'asc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
-    'title_2' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'asc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
     'title_1' => array(
       'sortable' => 1,
       'default_sort_order' => 'asc',
@@ -63,8 +47,8 @@ function pmnote_views_default_views() {
       'separator' => '',
       'empty_column' => 0,
     ),
-    'title' => array(
-      'sortable' => 1,
+    'body' => array(
+      'sortable' => 0,
       'default_sort_order' => 'asc',
       'align' => '',
       'separator' => '',
@@ -81,44 +65,33 @@ function pmnote_views_default_views() {
       'empty_column' => 1,
     ),
   );
-  /* Relationship: Project Management Note: Organization */
-  $handler->display->display_options['relationships']['organization_nid']['id'] = 'organization_nid';
-  $handler->display->display_options['relationships']['organization_nid']['table'] = 'pmnote';
-  $handler->display->display_options['relationships']['organization_nid']['field'] = 'organization_nid';
-  $handler->display->display_options['relationships']['organization_nid']['required'] = TRUE;
-  /* Relationship: Project Management Note: Project */
-  $handler->display->display_options['relationships']['project_nid']['id'] = 'project_nid';
-  $handler->display->display_options['relationships']['project_nid']['table'] = 'pmnote';
-  $handler->display->display_options['relationships']['project_nid']['field'] = 'project_nid';
-  /* Relationship: Project Management Note: Task */
-  $handler->display->display_options['relationships']['task_nid']['id'] = 'task_nid';
-  $handler->display->display_options['relationships']['task_nid']['table'] = 'pmnote';
-  $handler->display->display_options['relationships']['task_nid']['field'] = 'task_nid';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_3']['id'] = 'title_3';
-  $handler->display->display_options['fields']['title_3']['table'] = 'node';
-  $handler->display->display_options['fields']['title_3']['field'] = 'title';
-  $handler->display->display_options['fields']['title_3']['relationship'] = 'organization_nid';
-  $handler->display->display_options['fields']['title_3']['label'] = 'Organization';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_2']['id'] = 'title_2';
-  $handler->display->display_options['fields']['title_2']['table'] = 'node';
-  $handler->display->display_options['fields']['title_2']['field'] = 'title';
-  $handler->display->display_options['fields']['title_2']['relationship'] = 'project_nid';
-  $handler->display->display_options['fields']['title_2']['label'] = 'Project';
+  $handler->display->display_options['style_options']['sticky'] = TRUE;
+  $handler->display->display_options['style_options']['empty_table'] = TRUE;
+  /* Header: Content: PM Add Content Link */
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['id'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['table'] = 'node';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['field'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['node_type'] = 'pmnote';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['redirect'] = TRUE;
+  /* No results behavior: Global: Text area */
+  $handler->display->display_options['empty']['area']['id'] = 'area';
+  $handler->display->display_options['empty']['area']['table'] = 'views';
+  $handler->display->display_options['empty']['area']['field'] = 'area';
+  $handler->display->display_options['empty']['area']['empty'] = TRUE;
+  $handler->display->display_options['empty']['area']['content'] = 'No results match your search.';
+  $handler->display->display_options['empty']['area']['format'] = 'plain_text';
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title_1']['id'] = 'title_1';
   $handler->display->display_options['fields']['title_1']['table'] = 'node';
   $handler->display->display_options['fields']['title_1']['field'] = 'title';
-  $handler->display->display_options['fields']['title_1']['relationship'] = 'task_nid';
-  $handler->display->display_options['fields']['title_1']['label'] = 'Task';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title']['id'] = 'title';
-  $handler->display->display_options['fields']['title']['table'] = 'node';
-  $handler->display->display_options['fields']['title']['field'] = 'title';
-  $handler->display->display_options['fields']['title']['label'] = 'Note';
-  $handler->display->display_options['fields']['title']['alter']['word_boundary'] = FALSE;
-  $handler->display->display_options['fields']['title']['alter']['ellipsis'] = FALSE;
+  /* Field: Content: Description */
+  $handler->display->display_options['fields']['body']['id'] = 'body';
+  $handler->display->display_options['fields']['body']['table'] = 'field_data_body';
+  $handler->display->display_options['fields']['body']['field'] = 'body';
+  $handler->display->display_options['fields']['body']['type'] = 'text_summary_or_trimmed';
+  $handler->display->display_options['fields']['body']['settings'] = array(
+    'trim_length' => '600',
+  );
   /* Field: Content: Edit link */
   $handler->display->display_options['fields']['edit_node']['id'] = 'edit_node';
   $handler->display->display_options['fields']['edit_node']['table'] = 'views_entity_node';
@@ -156,4 +129,3 @@ function pmnote_views_default_views() {
 
   return $views;
 }
-

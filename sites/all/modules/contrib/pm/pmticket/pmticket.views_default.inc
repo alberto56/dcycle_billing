@@ -18,7 +18,7 @@ function pmticket_views_default_views() {
   $view->description = '';
   $view->tag = 'pm';
   $view->base_table = 'node';
-  $view->human_name = 'Project Management Ticket List';
+  $view->human_name = 'PM Ticket';
   $view->core = 7;
   $view->api_version = '3.0';
   $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
@@ -36,42 +36,50 @@ function pmticket_views_default_views() {
   $handler->display->display_options['pager']['options']['items_per_page'] = '10';
   $handler->display->display_options['style_plugin'] = 'table';
   $handler->display->display_options['style_options']['columns'] = array(
-    'title_3' => 'title_3',
-    'title_2' => 'title_2',
-    'title_1' => 'title_1',
     'title' => 'title',
+    'pm_status' => 'pm_status',
+    'pm_priority' => 'pm_priority',
+    'pm_category' => 'pm_category',
+    'pm_assigned' => 'pm_assigned',
     'edit_node' => 'edit_node',
     'delete_node' => 'edit_node',
   );
-  $handler->display->display_options['style_options']['default'] = 'title_3';
+  $handler->display->display_options['style_options']['default'] = 'title';
   $handler->display->display_options['style_options']['info'] = array(
-    'title_3' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'asc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
-    'title_2' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'asc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
-    'title_1' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'asc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
     'title' => array(
       'sortable' => 1,
       'default_sort_order' => 'asc',
       'align' => '',
       'separator' => '',
       'empty_column' => 0,
+    ),
+    'pm_status' => array(
+      'sortable' => 1,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 1,
+    ),
+    'pm_priority' => array(
+      'sortable' => 1,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 1,
+    ),
+    'pm_category' => array(
+      'sortable' => 1,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 1,
+    ),
+    'pm_assigned' => array(
+      'sortable' => 1,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 1,
     ),
     'edit_node' => array(
       'align' => '',
@@ -84,51 +92,47 @@ function pmticket_views_default_views() {
       'empty_column' => 1,
     ),
   );
+  $handler->display->display_options['style_options']['sticky'] = TRUE;
+  $handler->display->display_options['style_options']['empty_table'] = TRUE;
+  /* Header: Content: PM Add Content Link */
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['id'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['table'] = 'node';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['field'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['node_type'] = 'pmticket';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['redirect'] = TRUE;
   /* No results behavior: Global: Text area */
   $handler->display->display_options['empty']['area']['id'] = 'area';
   $handler->display->display_options['empty']['area']['table'] = 'views';
   $handler->display->display_options['empty']['area']['field'] = 'area';
   $handler->display->display_options['empty']['area']['empty'] = TRUE;
   $handler->display->display_options['empty']['area']['content'] = 'No results match your search.';
-  $handler->display->display_options['empty']['area']['format'] = 'filtered_html';
-  /* Relationship: Project Management Ticket: Organization */
-  $handler->display->display_options['relationships']['organization_nid']['id'] = 'organization_nid';
-  $handler->display->display_options['relationships']['organization_nid']['table'] = 'pmticket';
-  $handler->display->display_options['relationships']['organization_nid']['field'] = 'organization_nid';
-  $handler->display->display_options['relationships']['organization_nid']['required'] = TRUE;
-  /* Relationship: Project Management Ticket: Project */
-  $handler->display->display_options['relationships']['project_nid']['id'] = 'project_nid';
-  $handler->display->display_options['relationships']['project_nid']['table'] = 'pmticket';
-  $handler->display->display_options['relationships']['project_nid']['field'] = 'project_nid';
-  /* Relationship: Project Management Ticket: Task */
-  $handler->display->display_options['relationships']['task_nid']['id'] = 'task_nid';
-  $handler->display->display_options['relationships']['task_nid']['table'] = 'pmticket';
-  $handler->display->display_options['relationships']['task_nid']['field'] = 'task_nid';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_3']['id'] = 'title_3';
-  $handler->display->display_options['fields']['title_3']['table'] = 'node';
-  $handler->display->display_options['fields']['title_3']['field'] = 'title';
-  $handler->display->display_options['fields']['title_3']['relationship'] = 'organization_nid';
-  $handler->display->display_options['fields']['title_3']['label'] = 'Organization';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_2']['id'] = 'title_2';
-  $handler->display->display_options['fields']['title_2']['table'] = 'node';
-  $handler->display->display_options['fields']['title_2']['field'] = 'title';
-  $handler->display->display_options['fields']['title_2']['relationship'] = 'project_nid';
-  $handler->display->display_options['fields']['title_2']['label'] = 'Project';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_1']['id'] = 'title_1';
-  $handler->display->display_options['fields']['title_1']['table'] = 'node';
-  $handler->display->display_options['fields']['title_1']['field'] = 'title';
-  $handler->display->display_options['fields']['title_1']['relationship'] = 'task_nid';
-  $handler->display->display_options['fields']['title_1']['label'] = 'Task';
+  $handler->display->display_options['empty']['area']['format'] = 'plain_text';
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title']['id'] = 'title';
   $handler->display->display_options['fields']['title']['table'] = 'node';
   $handler->display->display_options['fields']['title']['field'] = 'title';
-  $handler->display->display_options['fields']['title']['label'] = 'Ticket';
+  $handler->display->display_options['fields']['title']['label'] = 'Title';
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = FALSE;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = FALSE;
+  /* Field: Content: Status */
+  $handler->display->display_options['fields']['pm_status']['id'] = 'pm_status';
+  $handler->display->display_options['fields']['pm_status']['table'] = 'field_data_pm_status';
+  $handler->display->display_options['fields']['pm_status']['field'] = 'pm_status';
+  /* Field: Content: Priority */
+  $handler->display->display_options['fields']['pm_priority']['id'] = 'pm_priority';
+  $handler->display->display_options['fields']['pm_priority']['table'] = 'field_data_pm_priority';
+  $handler->display->display_options['fields']['pm_priority']['field'] = 'pm_priority';
+  /* Field: Content: Category */
+  $handler->display->display_options['fields']['pm_category']['id'] = 'pm_category';
+  $handler->display->display_options['fields']['pm_category']['table'] = 'field_data_pm_category';
+  $handler->display->display_options['fields']['pm_category']['field'] = 'pm_category';
+  /* Field: Content: Assigned to */
+  $handler->display->display_options['fields']['pm_assigned']['id'] = 'pm_assigned';
+  $handler->display->display_options['fields']['pm_assigned']['table'] = 'field_data_pm_assigned';
+  $handler->display->display_options['fields']['pm_assigned']['field'] = 'pm_assigned';
+  $handler->display->display_options['fields']['pm_assigned']['settings'] = array(
+    'link' => 1,
+  );
   /* Field: Content: Edit link */
   $handler->display->display_options['fields']['edit_node']['id'] = 'edit_node';
   $handler->display->display_options['fields']['edit_node']['table'] = 'views_entity_node';
@@ -157,6 +161,75 @@ function pmticket_views_default_views() {
   $handler->display->display_options['filters']['type']['value'] = array(
     'pmticket' => 'pmticket',
   );
+  $handler->display->display_options['filters']['type']['group'] = 1;
+  /* Filter criterion: Content: Title */
+  $handler->display->display_options['filters']['title']['id'] = 'title';
+  $handler->display->display_options['filters']['title']['table'] = 'node';
+  $handler->display->display_options['filters']['title']['field'] = 'title';
+  $handler->display->display_options['filters']['title']['operator'] = 'contains';
+  $handler->display->display_options['filters']['title']['group'] = 1;
+  $handler->display->display_options['filters']['title']['exposed'] = TRUE;
+  $handler->display->display_options['filters']['title']['expose']['operator_id'] = 'title_op';
+  $handler->display->display_options['filters']['title']['expose']['label'] = 'Title';
+  $handler->display->display_options['filters']['title']['expose']['operator'] = 'title_op';
+  $handler->display->display_options['filters']['title']['expose']['identifier'] = 'title';
+  $handler->display->display_options['filters']['title']['expose']['remember_roles'] = array(
+    2 => '2',
+    1 => 0,
+    3 => 0,
+    4 => 0,
+  );
+  /* Filter criterion: Content: Category (pm_category) */
+  $handler->display->display_options['filters']['pm_category_value']['id'] = 'pm_category_value';
+  $handler->display->display_options['filters']['pm_category_value']['table'] = 'field_data_pm_category';
+  $handler->display->display_options['filters']['pm_category_value']['field'] = 'pm_category_value';
+  $handler->display->display_options['filters']['pm_category_value']['group'] = 1;
+  $handler->display->display_options['filters']['pm_category_value']['exposed'] = TRUE;
+  $handler->display->display_options['filters']['pm_category_value']['expose']['operator_id'] = 'pm_category_value_op';
+  $handler->display->display_options['filters']['pm_category_value']['expose']['label'] = 'Category';
+  $handler->display->display_options['filters']['pm_category_value']['expose']['operator'] = 'pm_category_value_op';
+  $handler->display->display_options['filters']['pm_category_value']['expose']['identifier'] = 'pm_category_value';
+  $handler->display->display_options['filters']['pm_category_value']['expose']['remember_roles'] = array(
+    2 => '2',
+    1 => 0,
+    3 => 0,
+    4 => 0,
+  );
+  $handler->display->display_options['filters']['pm_category_value']['reduce_duplicates'] = TRUE;
+  /* Filter criterion: Content: Priority (pm_priority) */
+  $handler->display->display_options['filters']['pm_priority_value']['id'] = 'pm_priority_value';
+  $handler->display->display_options['filters']['pm_priority_value']['table'] = 'field_data_pm_priority';
+  $handler->display->display_options['filters']['pm_priority_value']['field'] = 'pm_priority_value';
+  $handler->display->display_options['filters']['pm_priority_value']['group'] = 1;
+  $handler->display->display_options['filters']['pm_priority_value']['exposed'] = TRUE;
+  $handler->display->display_options['filters']['pm_priority_value']['expose']['operator_id'] = 'pm_priority_value_op';
+  $handler->display->display_options['filters']['pm_priority_value']['expose']['label'] = 'Priority';
+  $handler->display->display_options['filters']['pm_priority_value']['expose']['operator'] = 'pm_priority_value_op';
+  $handler->display->display_options['filters']['pm_priority_value']['expose']['identifier'] = 'pm_priority_value';
+  $handler->display->display_options['filters']['pm_priority_value']['expose']['remember_roles'] = array(
+    2 => '2',
+    1 => 0,
+    3 => 0,
+    4 => 0,
+  );
+  $handler->display->display_options['filters']['pm_priority_value']['reduce_duplicates'] = TRUE;
+  /* Filter criterion: Content: Status (pm_status) */
+  $handler->display->display_options['filters']['pm_status_value']['id'] = 'pm_status_value';
+  $handler->display->display_options['filters']['pm_status_value']['table'] = 'field_data_pm_status';
+  $handler->display->display_options['filters']['pm_status_value']['field'] = 'pm_status_value';
+  $handler->display->display_options['filters']['pm_status_value']['group'] = 1;
+  $handler->display->display_options['filters']['pm_status_value']['exposed'] = TRUE;
+  $handler->display->display_options['filters']['pm_status_value']['expose']['operator_id'] = 'pm_status_value_op';
+  $handler->display->display_options['filters']['pm_status_value']['expose']['label'] = 'Status';
+  $handler->display->display_options['filters']['pm_status_value']['expose']['operator'] = 'pm_status_value_op';
+  $handler->display->display_options['filters']['pm_status_value']['expose']['identifier'] = 'pm_status_value';
+  $handler->display->display_options['filters']['pm_status_value']['expose']['remember_roles'] = array(
+    2 => '2',
+    1 => 0,
+    3 => 0,
+    4 => 0,
+  );
+  $handler->display->display_options['filters']['pm_status_value']['reduce_duplicates'] = TRUE;
 
   /* Display: Page */
   $handler = $view->new_display('page', 'Page', 'page');

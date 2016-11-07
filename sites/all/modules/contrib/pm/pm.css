@@ -1,139 +1,113 @@
-table.formgroup {
-width: auto;
-margin: 0;
-clear: both;
-border: none;
+.pm-status-danger-onfocus:active,
+.pm-status-danger-onfocus:hover,
+.pm-status-danger {
+  color: #f00;
 }
 
-table.formgroup tr td {
-padding-left: 0px;
-padding-right: 5px;
-border: none;
+.pm-status-warning-onfocus:active,
+.pm-status-warning-onfocus:hover,
+.pm-status-warning {
+  color: #840;
 }
 
-table.formgroup tr td div.form-item{
-margin-top: 0px;
-margin-bottom: 5px;
+.pm-status-success-onfocus:active,
+.pm-status-success-onfocus:hover,
+.pm-status-success {
+  color: #238800;
 }
 
-tbody {
-border:none !important;
+.pm-status-info-onfocus:active,
+.pm-status-info-onfocus:hover,
+.pm-status-info {
+  color: #0071b3;
 }
 
-th.pm_list_operations {
-text-align: right;
-white-space: nowrap;
-padding: 0.3em 0.5em;
+.pm-status-normal-onfocus:active,
+.pm-status-normal-onfocus:hover,
+.pm-status-normal {
+  color: #555555;
 }
 
-td.pm_list_operations {
-text-align: right;
-white-space: nowrap;
+span.pm-no-icon {
+  border: 1px solid #aaaaaa;
+  color: #aaaaaa;
+  padding: 0 2px;
+  margin: 0 2px;
 }
 
-div.pm_quick_shortcuts {
-clear: both;
+.pm-use-storm-icons i.fa.pm-icon:before {
+  content: '' !important;
 }
 
-ul.pm_quick_shortcuts {
-list-style-type: none;
-margin: 0;
+.pm-use-storm-icons i.fa.pm-icon {
+  min-width: 16px;
+  min-height: 16px;
+  display: inline-block;
+  float: left;
+  background-position: center center;
+  background-repeat: no-repeat;
 }
 
-ul.pm_quick_shortcuts li {
-background: transparent;
-background-color: #5294C1;
-display: inline;
-float: left;
-padding: 0;
-margin: 0 1pt 1pt 0;
+.pm-use-storm-icons i.fa.fa-plus {
+  background-image: url(icons/application_add.png);
 }
 
-ul.pm_quick_shortcuts li a {
-display: block;
-width: 20px;
-height: 20px;
-text-align: center;
-font-weight: bold;
-color: #ffffff;
+.pm-use-storm-icons i.fa.fa-edit {
+  background-image: url(icons/application_edit.png);
 }
 
-tr.formgroup {
-  background-color: #ffffff !important;
-  border: none !important;
+.pm-use-storm-icons i.fa.fa-remove {
+  background-image: url(icons/application_delete.png);
 }
 
-dl.pmdashboard {
-  overflow: auto;
+.pm-use-storm-icons i.fa.fa-pause {
+  background-image: url(icons/status_on_hold.png);
 }
 
-dt.pmcomponent {
-padding-left: 40px;
-padding-top: 10px;
-height: 40px;
+.pm-use-storm-icons i.fa.fa-play {
+  background-image: url(icons/status_in_progress.png);
 }
 
-dt.pmcomponent a {
-font-weight: bold;
-margin-right: 5px;
+.pm-use-storm-icons i.fa.fa-check {
+  background-image: url(icons/status_completed.png);
 }
 
-dt#pmorganizations {
-background: transparent url(images/organizations.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-square {
+  background-image: url(icons/status_inserted.png);
 }
 
-dt#pmprojects {
-background: transparent url(images/projects.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-flask {
+  background-image: url(icons/projectcategory_development.png);
 }
 
-dt#pmtasks {
-background: transparent url(images/tasks.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-phone {
+  background-image: url(icons/category_support.png);
 }
 
-dt#pmtickets {
-background: transparent url(images/tickets.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-bug {
+  background-image: url(icons/category_bug.png);
 }
 
-dt#pmpeople {
-background: transparent url(images/people.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-tasks {
+  background-image: url(icons/category_task.png);
 }
 
-dt#pmteams {
-background: transparent url(images/teams.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-ticket {
+  background-image: url(icons/category_feature_request.png);
 }
 
-dt#pmknowledgebase {
-background: transparent url(images/knowledgebase.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-circle.pm-status-info {
+  background-image: url(icons/priority_1-low.png);
 }
 
-dt#pmtimetrackings {
-background: transparent url(images/timetrackings.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-circle.pm-status-success {
+  background-image: url(icons/priority_2-normal.png);
 }
 
-dt#pmnotes {
-background: transparent url(images/notes.png) no-repeat top left;
+.pm-use-storm-icons i.fa.fa-circle.pm-status-warning {
+  background-image: url(icons/priority_3-high.png);
 }
 
-dt#pminvoices {
-background: transparent url(images/invoices.png) no-repeat top left;
-}
-
-dt#pmexpenses {
-background: transparent url(images/expenses.png) no-repeat top left;
-}
-
-dt#pmattributes {
-background: transparent url(images/attributes.png) no-repeat top left;
-}
-
-dt#pmconfiguration {
-background: transparent url(images/configuration.png) no-repeat top left;
-}
-
-.container-inline .container-inline-date div, .container-inline div.container-inline-date, .container-inline .container-inline-date input {
-  display: block;
-}
-
-.view .attachment .pm-icon-add-view {
-  float: right;
+.pm-use-storm-icons i.fa.fa-circle.pm-status-danger {
+  background-image: url(icons/priority_4-urgent.png);
 }

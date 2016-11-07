@@ -1,7 +1,6 @@
 <?php
 /**
  * @file
- *
  * Views integration default settings.
  *
  * Stores default values for views. The view provides a list of organization
@@ -19,7 +18,7 @@ function pmorganization_views_default_views() {
   $view->description = '';
   $view->tag = 'pm';
   $view->base_table = 'node';
-  $view->human_name = 'Project Management Organization List';
+  $view->human_name = 'PM Organization';
   $view->core = 7;
   $view->api_version = '3.0';
   $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
@@ -38,7 +37,7 @@ function pmorganization_views_default_views() {
   $handler->display->display_options['style_plugin'] = 'table';
   $handler->display->display_options['style_options']['columns'] = array(
     'title' => 'title',
-    'country' => 'country',
+    'pm_address_country' => 'pm_address_country',
     'edit_node' => 'edit_node',
     'delete_node' => 'edit_node',
   );
@@ -51,46 +50,67 @@ function pmorganization_views_default_views() {
       'separator' => '',
       'empty_column' => 0,
     ),
-    'country' => array(
+    'pm_address_country' => array(
       'sortable' => 1,
       'default_sort_order' => 'asc',
       'align' => '',
       'separator' => '',
-      'empty_column' => 0,
-    ),
-    'edit_node' => array(
-      'align' => '',
-      'separator' => ' ',
       'empty_column' => 1,
     ),
-    'delete_node' => array(
+    'pmorganization_type' => array(
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 1,
+    ),
+    'pm_handler_field_operation' => array(
       'align' => '',
       'separator' => '',
       'empty_column' => 1,
     ),
   );
+  $handler->display->display_options['style_options']['sticky'] = TRUE;
+  $handler->display->display_options['style_options']['empty_table'] = TRUE;
+  /* Header: Content: PM Add Content Link */
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['id'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['table'] = 'node';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['field'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['node_type'] = 'pmorganization';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['redirect'] = TRUE;
+  /* No results behavior: Global: Text area */
+  $handler->display->display_options['empty']['area']['id'] = 'area';
+  $handler->display->display_options['empty']['area']['table'] = 'views';
+  $handler->display->display_options['empty']['area']['field'] = 'area';
+  $handler->display->display_options['empty']['area']['empty'] = TRUE;
+  $handler->display->display_options['empty']['area']['content'] = 'No results match your search.';
+  $handler->display->display_options['empty']['area']['format'] = 'plain_text';
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title']['id'] = 'title';
   $handler->display->display_options['fields']['title']['table'] = 'node';
   $handler->display->display_options['fields']['title']['field'] = 'title';
-  $handler->display->display_options['fields']['title']['label'] = 'Organization';
+  $handler->display->display_options['fields']['title']['label'] = 'Title';
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = FALSE;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = FALSE;
-  /* Field: Project Management Organization: Country */
-  $handler->display->display_options['fields']['country']['id'] = 'country';
-  $handler->display->display_options['fields']['country']['table'] = 'pmorganization';
-  $handler->display->display_options['fields']['country']['field'] = 'country';
-  /* Field: Content: Edit link */
-  $handler->display->display_options['fields']['edit_node']['id'] = 'edit_node';
-  $handler->display->display_options['fields']['edit_node']['table'] = 'views_entity_node';
-  $handler->display->display_options['fields']['edit_node']['field'] = 'edit_node';
-  $handler->display->display_options['fields']['edit_node']['label'] = 'Operations';
-  /* Field: Content: Delete link */
-  $handler->display->display_options['fields']['delete_node']['id'] = 'delete_node';
-  $handler->display->display_options['fields']['delete_node']['table'] = 'views_entity_node';
-  $handler->display->display_options['fields']['delete_node']['field'] = 'delete_node';
-  $handler->display->display_options['fields']['delete_node']['label'] = '';
-  $handler->display->display_options['fields']['delete_node']['element_label_colon'] = FALSE;
+  /* Field: Content: Address - Country */
+  $handler->display->display_options['fields']['pm_address_country']['id'] = 'pm_address_country';
+  $handler->display->display_options['fields']['pm_address_country']['table'] = 'field_data_pm_address';
+  $handler->display->display_options['fields']['pm_address_country']['field'] = 'pm_address_country';
+  $handler->display->display_options['fields']['pm_address_country']['label'] = 'Country';
+  $handler->display->display_options['fields']['pm_address_country']['hide_empty'] = TRUE;
+  $handler->display->display_options['fields']['pm_address_country']['hide_alter_empty'] = FALSE;
+  $handler->display->display_options['fields']['pm_address_country']['display_name'] = 1;
+  /* Field: Content: Organization Type */
+  $handler->display->display_options['fields']['pmorganization_type']['id'] = 'pmorganization_type';
+  $handler->display->display_options['fields']['pmorganization_type']['table'] = 'field_data_pmorganization_type';
+  $handler->display->display_options['fields']['pmorganization_type']['field'] = 'pmorganization_type';
+  $handler->display->display_options['fields']['pmorganization_type']['label'] = 'Type';
+  $handler->display->display_options['fields']['pmorganization_type']['delta_offset'] = '0';
+  /* Field: Content: PM Operations */
+  $handler->display->display_options['fields']['pm_handler_field_operation']['id'] = 'pm_handler_field_operation';
+  $handler->display->display_options['fields']['pm_handler_field_operation']['table'] = 'node';
+  $handler->display->display_options['fields']['pm_handler_field_operation']['field'] = 'pm_handler_field_operation';
+  $handler->display->display_options['fields']['pm_handler_field_operation']['label'] = 'Operations';
+  $handler->display->display_options['fields']['pm_handler_field_operation']['display_add_icon'] = 1;
+  $handler->display->display_options['fields']['pm_handler_field_operation']['display_icons'] = 1;
   /* Sort criterion: Content: Title */
   $handler->display->display_options['sorts']['title']['id'] = 'title';
   $handler->display->display_options['sorts']['title']['table'] = 'node';
@@ -109,20 +129,38 @@ function pmorganization_views_default_views() {
   $handler->display->display_options['filters']['type']['value'] = array(
     'pmorganization' => 'pmorganization',
   );
+  $handler->display->display_options['filters']['type']['group'] = 1;
   /* Filter criterion: Content: Title */
   $handler->display->display_options['filters']['title']['id'] = 'title';
   $handler->display->display_options['filters']['title']['table'] = 'node';
   $handler->display->display_options['filters']['title']['field'] = 'title';
   $handler->display->display_options['filters']['title']['operator'] = 'contains';
+  $handler->display->display_options['filters']['title']['group'] = 1;
   $handler->display->display_options['filters']['title']['exposed'] = TRUE;
   $handler->display->display_options['filters']['title']['expose']['operator_id'] = 'title_op';
-  $handler->display->display_options['filters']['title']['expose']['label'] = 'Organization';
+  $handler->display->display_options['filters']['title']['expose']['label'] = 'Title';
   $handler->display->display_options['filters']['title']['expose']['operator'] = 'title_op';
   $handler->display->display_options['filters']['title']['expose']['identifier'] = 'title';
   $handler->display->display_options['filters']['title']['expose']['remember_roles'] = array(
     2 => '2',
     1 => 0,
     3 => 0,
+  );
+  /* Filter criterion: Content: Organization Type (pmorganization_type) */
+  $handler->display->display_options['filters']['pmorganization_type_value']['id'] = 'pmorganization_type_value';
+  $handler->display->display_options['filters']['pmorganization_type_value']['table'] = 'field_data_pmorganization_type';
+  $handler->display->display_options['filters']['pmorganization_type_value']['field'] = 'pmorganization_type_value';
+  $handler->display->display_options['filters']['pmorganization_type_value']['exposed'] = TRUE;
+  $handler->display->display_options['filters']['pmorganization_type_value']['expose']['operator_id'] = 'pmorganization_type_value_op';
+  $handler->display->display_options['filters']['pmorganization_type_value']['expose']['label'] = 'Type';
+  $handler->display->display_options['filters']['pmorganization_type_value']['expose']['operator'] = 'pmorganization_type_value_op';
+  $handler->display->display_options['filters']['pmorganization_type_value']['expose']['identifier'] = 'pmorganization_type_value';
+  $handler->display->display_options['filters']['pmorganization_type_value']['expose']['remember_roles'] = array(
+    2 => '2',
+    1 => 0,
+    3 => 0,
+    4 => 0,
+    5 => 0,
   );
 
   /* Display: Page */
@@ -133,6 +171,54 @@ function pmorganization_views_default_views() {
   $handler->display->display_options['menu']['title'] = 'Organizations';
   $handler->display->display_options['menu']['weight'] = '0';
   $handler->display->display_options['menu']['context'] = '0';
+
+  /* Display: Provider */
+  $handler = $view->new_display('entityreference', 'Provider', 'entityreference_1');
+  $handler->display->display_options['defaults']['title'] = FALSE;
+  $handler->display->display_options['display_description'] = 'Entity Reference display';
+  $handler->display->display_options['pager']['type'] = 'some';
+  $handler->display->display_options['defaults']['style_plugin'] = FALSE;
+  $handler->display->display_options['style_plugin'] = 'entityreference_style';
+  $handler->display->display_options['style_options']['search_fields'] = array(
+    'title' => 'title',
+  );
+  $handler->display->display_options['defaults']['style_options'] = FALSE;
+  $handler->display->display_options['defaults']['row_plugin'] = FALSE;
+  $handler->display->display_options['row_plugin'] = 'entityreference_fields';
+  $handler->display->display_options['defaults']['row_options'] = FALSE;
+  $handler->display->display_options['defaults']['fields'] = FALSE;
+  /* Field: Content: Title */
+  $handler->display->display_options['fields']['title']['id'] = 'title';
+  $handler->display->display_options['fields']['title']['table'] = 'node';
+  $handler->display->display_options['fields']['title']['field'] = 'title';
+  $handler->display->display_options['fields']['title']['label'] = '';
+  $handler->display->display_options['fields']['title']['alter']['word_boundary'] = FALSE;
+  $handler->display->display_options['fields']['title']['alter']['ellipsis'] = FALSE;
+  $handler->display->display_options['fields']['title']['element_label_colon'] = FALSE;
+  $handler->display->display_options['fields']['title']['link_to_node'] = FALSE;
+  $handler->display->display_options['defaults']['filter_groups'] = FALSE;
+  $handler->display->display_options['defaults']['filters'] = FALSE;
+  /* Filter criterion: Content: Published */
+  $handler->display->display_options['filters']['status']['id'] = 'status';
+  $handler->display->display_options['filters']['status']['table'] = 'node';
+  $handler->display->display_options['filters']['status']['field'] = 'status';
+  $handler->display->display_options['filters']['status']['value'] = 1;
+  $handler->display->display_options['filters']['status']['group'] = 1;
+  $handler->display->display_options['filters']['status']['expose']['operator'] = FALSE;
+  /* Filter criterion: Content: Type */
+  $handler->display->display_options['filters']['type']['id'] = 'type';
+  $handler->display->display_options['filters']['type']['table'] = 'node';
+  $handler->display->display_options['filters']['type']['field'] = 'type';
+  $handler->display->display_options['filters']['type']['value'] = array(
+    'pmorganization' => 'pmorganization',
+  );
+  /* Filter criterion: Content: Organization Type (pmorganization_type) */
+  $handler->display->display_options['filters']['pmorganization_type_value']['id'] = 'pmorganization_type_value';
+  $handler->display->display_options['filters']['pmorganization_type_value']['table'] = 'field_data_pmorganization_type';
+  $handler->display->display_options['filters']['pmorganization_type_value']['field'] = 'pmorganization_type_value';
+  $handler->display->display_options['filters']['pmorganization_type_value']['value'] = array(
+    'provider' => 'provider',
+  );
 
   $views[$view->name] = $view;
 

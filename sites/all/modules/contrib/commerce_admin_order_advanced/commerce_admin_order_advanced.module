@@ -20,7 +20,7 @@ function commerce_admin_order_advanced_menu() {
 
   $items['user/addressfield/autocomplete'] = array(
     'title' => 'User addressfield autocomplete',
-    'page callback' => '_commerce_admin_order_advanced_profile_autocomplete',
+    'page callback' => 'commerce_admin_order_advanced_profile_autocomplete',
     'access callback' => 'user_access',
     'access arguments' => array('access user profiles'),
     'type' => MENU_CALLBACK,
@@ -66,14 +66,6 @@ function commerce_admin_order_advanced_menu_alter(&$items) {
  * line item search form.
  */
 function commerce_admin_order_advanced_form_commerce_order_ui_order_form_alter(&$form, &$form_state) {
-  $form['#attached']['css'][] = drupal_get_path('module', 'commerce_admin_order_advanced') . '/commerce_admin_order_advanced.css';
-
-  // Change the weight of form fields to put them in the correct order.
-  $form['commerce_customer_billing']['#weight'] = 0;
-  $form['commerce_customer_shipping']['#weight'] = 1;
-  $form['field_domain']['#weight'] = 2;
-  $form['commerce_line_items']['#weight'] = 3;
-
   $profile_types = commerce_customer_profile_types();
 
   // Loop through each of the commerce customer profile types to add copy
@@ -132,7 +124,7 @@ function commerce_admin_order_advanced_profile_copy_validate($form, &$form_state
   }
   else {
     $form_state['copy_' . $copy_dest] = TRUE;
-    // Determin the appropriate source to copy the profile fields from.
+    // Determine the appropriate source to copy the profile fields from.
     $copy_source = variable_get('commerce_customer_profile_' . $copy_dest . '_profile_copy_source', FALSE);
     if (!empty($copy_source)) {
       $info = array(
@@ -168,6 +160,7 @@ function commerce_admin_order_advanced_search_customers_form($form, &$form_state
     '#suffix' => '</div>',
     '#attached' => array(
       'js' => array(drupal_get_path('module', 'commerce_admin_order_advanced') . '/commerce_admin_order_advanced.js'),
+      'css' => array( drupal_get_path('module', 'commerce_admin_order_advanced') . '/commerce_admin_order_advanced.css'),
     ),
   );
 
@@ -180,8 +173,8 @@ function commerce_admin_order_advanced_search_customers_form($form, &$form_state
 
   $form['search']['customer_email'] = array(
     '#type' => 'textfield',
-    '#description' => t('Enter the customers email address'),
-    '#title' => t('Search customers by email'),
+    '#description' => t('Search by the customer\'s email address (must be an existing Drupal user).'),
+    '#title' => t('Search customer\'s by email'),
     '#autocomplete_path' => 'user/email/autocomplete',
     '#ajax' => array(
       'callback' => 'commerce_admin_order_advanced_select_customer',
@@ -191,8 +184,8 @@ function commerce_admin_order_advanced_search_customers_form($form, &$form_state
 
   $form['search']['customer_profile'] = array(
     '#type' => 'textfield',
-    '#description' => t('Search customer by profile'),
-    '#title' => t('Search by profile'),
+    '#description' => t('Search for customer profiles with a matching name or organization.'),
+    '#title' => t('Search by profile (name or organization)'),
     '#autocomplete_path' => 'user/addressfield/autocomplete',
     '#ajax' => array(
       'callback' => 'commerce_admin_order_advanced_select_customer',
@@ -233,21 +226,36 @@ function commerce_admin_order_advanced_search_customers_form($form, &$form_state
  * fields whenever a customer is loaded by email or name.
  */
 function commerce_admin_order_advanced_form_commerce_admin_order_advanced_search_customers_form_alter(&$form, &$form_state) {
-  if (!empty($form_state['triggering_element']['#value'])) {
-    // Load the uid from the submitted form element.
-    $selected_user = $form_state['triggering_element']['#value'];
-    // The format will be uid or uid-profile_id. Determine the uid.
-    if (is_numeric($selected_user)) {
-      $uid = $selected_user;
+  // Specify the parent form elements that we should react to.
+  $parents = array(
+    'customer_email',
+    'customer_profile',
+  );
+
+  // If the triggering element was one of the customer search fields.
+  if (!empty($form_state['triggering_element']['#parents'][0]) &&
+    in_array($form_state['triggering_element']['#parents'][0], $parents) &&
+    !empty($form_state['triggering_element']['#value'])) {
+
+    $uid = NULL;
+
+    // The UID will be submitted as [uid] or [uid]-[profile_id].
+    if (is_numeric($form_state['triggering_element']['#value'])) {
+      $uid = $form_state['triggering_element']['#value'];
     }
     else {
-      $user_keys = explode('-', $selected_user);
-      if (count($user_keys) == 2) {
-        $uid = $user_keys[0];
+      preg_match('/([\d]+)\-([\d]+)/', $form_state['triggering_element']['#value'], $key);
+      if (!empty($key[1])) {
+        $uid = $key[1];
       }
     }
 
-    $user = user_load($uid);
+    // Do not continue if we weren't able to find a selected user id.
+    if (!is_numeric($uid)) {
+      return;
+    }
+
+    $user = user_load((int) $uid);
 
     // If we're able to load a user, add the form fields for selecting their
     // billing and shipping profiles.
@@ -275,12 +283,14 @@ function commerce_admin_order_advanced_form_commerce_admin_order_advanced_search
         '#default_value' => !empty($form_state['values']['billing_profile']) ? $form_state['values']['billing_profile'] : 0,
       );
 
-      $form['customer']['shipping_profile'] = array(
-        '#type' => 'select',
-        '#title' => t('Shipping Profile'),
-        '#options' => _commerce_admin_order_advanced_load_profiles($uid, 'shipping'),
-        '#default_value' => !empty($form_state['values']['shipping_profile']) ? $form_state['values']['shipping_profile'] : 0,
-      );
+      if (module_exists('commerce_shipping')) {
+        $form['customer']['shipping_profile'] = array(
+          '#type' => 'select',
+          '#title' => t('Shipping Profile'),
+          '#options' => _commerce_admin_order_advanced_load_profiles($uid, 'shipping'),
+          '#default_value' => !empty($form_state['values']['shipping_profile']) ? $form_state['values']['shipping_profile'] : 0,
+        );
+      }
 
       $form['customer']['email']['#access'] = FALSE;
     }
@@ -342,12 +352,21 @@ function commerce_admin_order_advanced_search_customers_form_submit(&$form, &$fo
     $uid = $user->uid;
   }
   elseif (!empty($form_state['values']['email'])) {
+    // Since usernames are considered public information in Drupal, we must
+    // not leak e-mail adresses through usernames.
+    // See commerce_order_get_properties().
+    $username = preg_replace('/[^\x{80}-\x{F7} a-z0-9@_.\'-]/i', '-', trim($form_state['values']['email']));
+    $username = preg_replace('/@.*$/', '', $username);
+    $username = substr($username, 0, USERNAME_MAX_LENGTH);
+    $username = commerce_order_unique_username($username);
+
     // Create a new user entity from the submitted email.
     $user = entity_create('user', array());
-    $user->name = $form_state['values']['email'];
+    $user->name = $username;
     $user->mail = $form_state['values']['email'];
     $user->status = 1;
     $user->roles = array(DRUPAL_AUTHENTICATED_RID => TRUE);
+    $user->pass =user_password(variable_get('commerce_password_length', 8));
     user_save($user);
     $uid = $user->uid;
   }
@@ -427,7 +446,7 @@ function _commerce_admin_order_advanced_email_autocomplete($email = '') {
 /**
  * Helper function to load customer profiles for autocomplete.
  */
-function _commerce_admin_order_advanced_profile_autocomplete($name = '') {
+function commerce_admin_order_advanced_profile_autocomplete($name = '') {
   $customers = array();
   if (strlen($name) < 3) {
     return drupal_json_output($customers);
@@ -436,7 +455,11 @@ function _commerce_admin_order_advanced_profile_autocomplete($name = '') {
   $query->join('commerce_customer_profile', 'cp', 'ca.entity_id = cp.profile_id');
   $query->fields('ca');
   $query->addField('cp', 'uid', 'uid');
-  $db_or = db_or()->condition('ca.commerce_customer_address_name_line', '%' . $name . '%', 'LIKE')->condition('ca.commerce_customer_address_last_name', '%' . $name . '%', 'LIKE')->condition('ca.commerce_customer_address_first_name', '%' . $name . '%', 'LIKE');
+  $db_or = db_or()
+    ->condition('ca.commerce_customer_address_name_line', '%' . $name . '%', 'LIKE')
+    ->condition('ca.commerce_customer_address_last_name', '%' . $name . '%', 'LIKE')
+    ->condition('ca.commerce_customer_address_first_name', '%' . $name . '%', 'LIKE')
+    ->condition('ca.commerce_customer_address_organisation_name', '%' . $name . '%', 'LIKE');
   $query->condition($db_or);
   $query->condition('cp.uid', '0', '<>');
   $result = $query->execute()->fetchAllAssoc('uid');

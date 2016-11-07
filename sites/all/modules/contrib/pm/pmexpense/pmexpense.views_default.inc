@@ -15,7 +15,7 @@ function pmexpense_views_default_views() {
   $view->description = '';
   $view->tag = 'pm';
   $view->base_table = 'node';
-  $view->human_name = 'Project Management Expenses List';
+  $view->human_name = 'PM Expense';
   $view->core = 7;
   $view->api_version = '3.0';
   $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
@@ -33,26 +33,17 @@ function pmexpense_views_default_views() {
   $handler->display->display_options['pager']['options']['items_per_page'] = '10';
   $handler->display->display_options['style_plugin'] = 'table';
   $handler->display->display_options['style_options']['columns'] = array(
-    'title_1' => 'title_1',
-    'title_2' => 'title_2',
+    'pmexpense_date' => 'pmexpense_date',
     'title' => 'title',
-    'expensedate' => 'expensedate',
-    'amount' => 'amount',
+    'pm_amount' => 'pm_amount',
     'edit_node' => 'edit_node',
     'delete_node' => 'edit_node',
   );
-  $handler->display->display_options['style_options']['default'] = 'expensedate';
+  $handler->display->display_options['style_options']['default'] = 'pmexpense_date';
   $handler->display->display_options['style_options']['info'] = array(
-    'title_1' => array(
+    'pmexpense_date' => array(
       'sortable' => 1,
-      'default_sort_order' => 'asc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
-    'title_2' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'asc',
+      'default_sort_order' => 'desc',
       'align' => '',
       'separator' => '',
       'empty_column' => 0,
@@ -64,14 +55,7 @@ function pmexpense_views_default_views() {
       'separator' => '',
       'empty_column' => 0,
     ),
-    'expensedate' => array(
-      'sortable' => 1,
-      'default_sort_order' => 'desc',
-      'align' => '',
-      'separator' => '',
-      'empty_column' => 0,
-    ),
-    'amount' => array(
+    'pm_amount' => array(
       'sortable' => 0,
       'default_sort_order' => 'asc',
       'align' => '',
@@ -89,34 +73,33 @@ function pmexpense_views_default_views() {
       'empty_column' => 1,
     ),
   );
-  /* Relationship: Project Management Expense: Organization */
-  $handler->display->display_options['relationships']['organization_nid']['id'] = 'organization_nid';
-  $handler->display->display_options['relationships']['organization_nid']['table'] = 'pmexpense';
-  $handler->display->display_options['relationships']['organization_nid']['field'] = 'organization_nid';
-  /* Relationship: Project Management Expense: Project */
-  $handler->display->display_options['relationships']['project_nid']['id'] = 'project_nid';
-  $handler->display->display_options['relationships']['project_nid']['table'] = 'pmexpense';
-  $handler->display->display_options['relationships']['project_nid']['field'] = 'project_nid';
-  /* Relationship: Project Management Expense: Task */
-  $handler->display->display_options['relationships']['task_nid']['id'] = 'task_nid';
-  $handler->display->display_options['relationships']['task_nid']['table'] = 'pmexpense';
-  $handler->display->display_options['relationships']['task_nid']['field'] = 'task_nid';
-  /* Relationship: Project Management Expense: Ticket */
-  $handler->display->display_options['relationships']['ticket_nid']['id'] = 'ticket_nid';
-  $handler->display->display_options['relationships']['ticket_nid']['table'] = 'pmexpense';
-  $handler->display->display_options['relationships']['ticket_nid']['field'] = 'ticket_nid';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_1']['id'] = 'title_1';
-  $handler->display->display_options['fields']['title_1']['table'] = 'node';
-  $handler->display->display_options['fields']['title_1']['field'] = 'title';
-  $handler->display->display_options['fields']['title_1']['relationship'] = 'organization_nid';
-  $handler->display->display_options['fields']['title_1']['label'] = 'Organization';
-  /* Field: Content: Title */
-  $handler->display->display_options['fields']['title_2']['id'] = 'title_2';
-  $handler->display->display_options['fields']['title_2']['table'] = 'node';
-  $handler->display->display_options['fields']['title_2']['field'] = 'title';
-  $handler->display->display_options['fields']['title_2']['relationship'] = 'project_nid';
-  $handler->display->display_options['fields']['title_2']['label'] = 'Project';
+  $handler->display->display_options['style_options']['sticky'] = TRUE;
+  $handler->display->display_options['style_options']['empty_table'] = TRUE;
+  /* Header: Content: PM Add Content Link */
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['id'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['table'] = 'node';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['field'] = 'pm_handler_area_addcontent';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['node_type'] = 'pmexpense';
+  $handler->display->display_options['header']['pm_handler_area_addcontent']['redirect'] = TRUE;
+  /* No results behavior: Global: Text area */
+  $handler->display->display_options['empty']['area']['id'] = 'area';
+  $handler->display->display_options['empty']['area']['table'] = 'views';
+  $handler->display->display_options['empty']['area']['field'] = 'area';
+  $handler->display->display_options['empty']['area']['label'] = 'No results match your search';
+  $handler->display->display_options['empty']['area']['empty'] = TRUE;
+  $handler->display->display_options['empty']['area']['content'] = 'No results match your search.';
+  $handler->display->display_options['empty']['area']['format'] = 'plain_text';
+  /* Field: Content: Expense Date */
+  $handler->display->display_options['fields']['pmexpense_date']['id'] = 'pmexpense_date';
+  $handler->display->display_options['fields']['pmexpense_date']['table'] = 'field_data_pmexpense_date';
+  $handler->display->display_options['fields']['pmexpense_date']['field'] = 'pmexpense_date';
+  $handler->display->display_options['fields']['pmexpense_date']['settings'] = array(
+    'format_type' => 'medium',
+    'fromto' => 'both',
+    'multiple_number' => '',
+    'multiple_from' => '',
+    'multiple_to' => '',
+  );
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title']['id'] = 'title';
   $handler->display->display_options['fields']['title']['table'] = 'node';
@@ -124,15 +107,17 @@ function pmexpense_views_default_views() {
   $handler->display->display_options['fields']['title']['label'] = 'Expense';
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = FALSE;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = FALSE;
-  /* Field: Project Management Expense: Date */
-  $handler->display->display_options['fields']['expensedate']['id'] = 'expensedate';
-  $handler->display->display_options['fields']['expensedate']['table'] = 'pmexpense';
-  $handler->display->display_options['fields']['expensedate']['field'] = 'expensedate';
-  $handler->display->display_options['fields']['expensedate']['date_format'] = 'short';
-  /* Field: Project Management Expense: Amount */
-  $handler->display->display_options['fields']['amount']['id'] = 'amount';
-  $handler->display->display_options['fields']['amount']['table'] = 'pmexpense';
-  $handler->display->display_options['fields']['amount']['field'] = 'amount';
+  /* Field: Content: Amount */
+  $handler->display->display_options['fields']['pm_amount']['id'] = 'pm_amount';
+  $handler->display->display_options['fields']['pm_amount']['table'] = 'field_data_pm_amount';
+  $handler->display->display_options['fields']['pm_amount']['field'] = 'pm_amount';
+  $handler->display->display_options['fields']['pm_amount']['element_class'] = 'align-right';
+  $handler->display->display_options['fields']['pm_amount']['settings'] = array(
+    'thousand_separator' => ' ',
+    'decimal_separator' => '.',
+    'scale' => '2',
+    'prefix_suffix' => 1,
+  );
   /* Field: Content: Edit link */
   $handler->display->display_options['fields']['edit_node']['id'] = 'edit_node';
   $handler->display->display_options['fields']['edit_node']['table'] = 'views_entity_node';
@@ -163,23 +148,6 @@ function pmexpense_views_default_views() {
   );
   $handler->display->display_options['filters']['type']['group'] = 1;
   /* Filter criterion: Content: Title */
-  $handler->display->display_options['filters']['title_1']['id'] = 'title_1';
-  $handler->display->display_options['filters']['title_1']['table'] = 'node';
-  $handler->display->display_options['filters']['title_1']['field'] = 'title';
-  $handler->display->display_options['filters']['title_1']['relationship'] = 'organization_nid';
-  $handler->display->display_options['filters']['title_1']['operator'] = 'contains';
-  $handler->display->display_options['filters']['title_1']['group'] = 1;
-  $handler->display->display_options['filters']['title_1']['exposed'] = TRUE;
-  $handler->display->display_options['filters']['title_1']['expose']['operator_id'] = 'title_1_op';
-  $handler->display->display_options['filters']['title_1']['expose']['label'] = 'Organization';
-  $handler->display->display_options['filters']['title_1']['expose']['operator'] = 'title_1_op';
-  $handler->display->display_options['filters']['title_1']['expose']['identifier'] = 'title_1';
-  $handler->display->display_options['filters']['title_1']['expose']['remember_roles'] = array(
-    2 => '2',
-    1 => 0,
-    3 => 0,
-  );
-  /* Filter criterion: Content: Title */
   $handler->display->display_options['filters']['title']['id'] = 'title';
   $handler->display->display_options['filters']['title']['table'] = 'node';
   $handler->display->display_options['filters']['title']['field'] = 'title';
@@ -187,26 +155,10 @@ function pmexpense_views_default_views() {
   $handler->display->display_options['filters']['title']['group'] = 1;
   $handler->display->display_options['filters']['title']['exposed'] = TRUE;
   $handler->display->display_options['filters']['title']['expose']['operator_id'] = 'title_op';
-  $handler->display->display_options['filters']['title']['expose']['label'] = 'Expense';
+  $handler->display->display_options['filters']['title']['expose']['label'] = 'Title';
   $handler->display->display_options['filters']['title']['expose']['operator'] = 'title_op';
   $handler->display->display_options['filters']['title']['expose']['identifier'] = 'title';
   $handler->display->display_options['filters']['title']['expose']['remember_roles'] = array(
-    2 => '2',
-    1 => 0,
-    3 => 0,
-  );
-  /* Filter criterion: Project Management Expense: Provider */
-  $handler->display->display_options['filters']['provider_title']['id'] = 'provider_title';
-  $handler->display->display_options['filters']['provider_title']['table'] = 'pmexpense';
-  $handler->display->display_options['filters']['provider_title']['field'] = 'provider_title';
-  $handler->display->display_options['filters']['provider_title']['operator'] = 'contains';
-  $handler->display->display_options['filters']['provider_title']['group'] = 1;
-  $handler->display->display_options['filters']['provider_title']['exposed'] = TRUE;
-  $handler->display->display_options['filters']['provider_title']['expose']['operator_id'] = 'provider_title_op';
-  $handler->display->display_options['filters']['provider_title']['expose']['label'] = 'Provider';
-  $handler->display->display_options['filters']['provider_title']['expose']['operator'] = 'provider_title_op';
-  $handler->display->display_options['filters']['provider_title']['expose']['identifier'] = 'provider_title';
-  $handler->display->display_options['filters']['provider_title']['expose']['remember_roles'] = array(
     2 => '2',
     1 => 0,
     3 => 0,
