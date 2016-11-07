@@ -12,9 +12,12 @@ if [ ! -f /var/www/html/database/mysql/auto.cnf ]; then
     drush si \
     -y --db-url=mysql://drupal:drupal@database:3306/drupal
 
+  # If we do not enable inline_entity_form, it does not get enabled as a
+  # dependency of manage_deploy, not sure why.
   cd /var/www/html && \
-    drush en manage_deploy -y
-    chown -R www-data:www-data ./sites/default/files &&
+    drush en inline_entity_form -y && \
+    drush en manage_deploy -y && \
+    chown -R www-data:www-data ./sites/default/files && \
     drush cc all
 else
   echo 'Because it exists, we will simply update the existing site.'

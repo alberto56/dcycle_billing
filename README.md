@@ -13,6 +13,9 @@ Upgrading from previous non-docker installation
 -----
 
     drush sql-dump > ~/Desktop/sql.sql
+    git pull origin master
+    chmod -R +w sites/default
+    mv sites/default/settings.php ~/Desktop/settings.php-backup-delete-if-all-goes-well
     ./dcycle-billing/create.sh
     ./dcycle-billing/sqlc.sh < ~/Desktop/sql.sql
     ./dcycle-billing/create.sh
