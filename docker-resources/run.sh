@@ -24,6 +24,9 @@ else
   echo 'First let us wait 15 seconds for the MySQL server to fire up.'
   sleep 15
   cd /var/www/html && \
+    # Force new dependencies.
+    drush dis manage_deploy -y && \
+    drush en manage_deploy -y && \
     drush vset maintenance_mode 1 && \
     drush rr && \
     drush cc all && \
