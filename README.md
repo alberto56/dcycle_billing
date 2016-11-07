@@ -17,7 +17,8 @@ Upgrading from previous non-docker installation
     chmod -R +w sites/default
     mv sites/default/settings.php ~/Desktop/settings.php-backup-delete-if-all-goes-well
     ./dcycle-billing/create.sh
-    ./dcycle-billing/sqlc.sh < ~/Desktop/sql.sql
+    docker cp ~/my-database.sql MY-DRUPAL-CONTAINER-ID:/my-database.sql
+    docker-compose exec web /bin/bash "drush sqlc < /my-database.sql"
     ./dcycle-billing/create.sh
 
 (Running create.sh a second time takes care of running the update scripts.)
