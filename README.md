@@ -12,13 +12,13 @@ Dependencies
 Upgrading from previous non-docker installation
 -----
 
-    drush sql-dump > ~/Desktop/sql.sql
+    drush cc all && drush sql-dump > ~/Desktop/sql.sql
     git pull origin master
     chmod -R +w sites/default
     mv sites/default/settings.php ~/Desktop/settings.php-backup-delete-if-all-goes-well
     ./dcycle-billing/create.sh
-    docker cp ~/my-database.sql MY-DRUPAL-CONTAINER-ID:/my-database.sql
-    docker-compose exec web /bin/bash "drush sqlc < /my-database.sql"
+    docker cp ~/Desktop/sql.sql "$(docker-compose ps -q web)":/my-database.sql
+    docker-compose exec web /bin/bash -c "drush sqlc < /my-database.sql"
     ./dcycle-billing/create.sh
 
 (Running create.sh a second time takes care of running the update scripts.)
