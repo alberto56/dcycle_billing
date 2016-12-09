@@ -17,7 +17,6 @@ dependencies[] = commerce_product_ui
 ;dependencies[] = commerce_product_pricing_ui
 ;dependencies[] = commerce_payment_ui
 dependencies[] = commerce_cheque
-dependencies[] = inline_entity_form
 ;dependencies[] = pmorganization
 ;dependencies[] = pmtimetracking
 dependencies[] = commerce_customer_ui
@@ -40,6 +39,7 @@ dependencies[] = date_views
 
 disabled[] = toolbar
 disabled[] = overlay
+disabled[] = inline_entity_form
 
 files[] = tests/manage_deploy_base.test
 files[] = tests/manage_deploy_create_organization.test
