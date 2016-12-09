@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
 
-echo 'Because we are sharing the database at ./database/mysql, we can'
+DRUPALTABLE='/var/www/html/database/mysql/drupal/users.frm'
+echo 'Because we are sharing the database at ./database/mysql, we can check'
 echo 'whether the site has already been installed by checking whether'
-echo '/var/www/html/database/mysql/auto.cnf exists on the container.'
-if [ ! -f /var/www/html/database/mysql/auto.cnf ]; then
+echo "$DRUPALTABLE exists on the container."
+if [ ! -f "$DRUPALTABLE" ]; then
   echo 'Because it does not, we can determine that the site has not yet'
   echo 'been installed, so we will install it.'
 
